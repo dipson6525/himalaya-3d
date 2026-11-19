@@ -1,0 +1,19 @@
+{
+  // TypeScript settings for files that run in Node, not the browser:
+  // build/test configuration and the Playwright e2e tests.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "e2e"]
+}
