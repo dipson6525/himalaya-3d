@@ -1,0 +1,6 @@
+# Keep LF line endings in the working copy on every OS (Windows included),
+# so Prettier/ruff checks behave the same on every laptop and in CI.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
