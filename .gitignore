@@ -1,0 +1,38 @@
+# ----------------------------------------------------------------------------
+# .gitignore — files that must never be committed.
+# Secrets (.env*), build output, dependencies and local tool state.
+# ----------------------------------------------------------------------------
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Playwright output (screenshots we keep go to docs/screenshots/ instead)
+playwright-report/
+test-results/
+blob-report/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets and local-only config — NEVER commit these
+*.local
+.env
+.env.*
+!.env.example
+
+# Claude Code personal settings (the shared .claude/settings.json IS committed)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
