@@ -18,6 +18,11 @@ Static web app: 3D Nepal (CesiumJS) + trek planning. No custom server. Deployed 
 - Checks: npm run lint · npm run typecheck · npm test · npm run e2e
 - One unit test: npx vitest run src/lib/acclim/checker.test.ts
 - Data prep (in data-prep/): python -m venv .venv · pip install -r requirements.txt · pytest · ruff check .
+  On this Windows laptop `python` is the Store alias: use `py -3.12 -m venv .venv`, then `.venv/Scripts/python`.
+- Test locations: unit tests next to code (src/**/x.test.ts); cross-module checks in app/tests/; e2e in app/e2e/.
+- e2e serves the production build under /himalaya-3d/ and fails on any 404. Screenshots go to
+  docs/screenshots/ only with UPDATE_SCREENSHOTS=1 (PowerShell: `$env:UPDATE_SCREENSHOTS=1; npm run e2e`).
+- Deploy runs only after CI passes on main (workflow_run); manual: `gh workflow run deploy.yml`.
 
 ## Conventions
 - TypeScript strict; ESLint + Prettier; Python ruff.

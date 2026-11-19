@@ -1,0 +1,70 @@
+# deploy.yml — publishes the site to GitHub Pages after CI has passed on main.
+# Owner: Sparsh Gorkhali (review). Related: ADR-001 static site, ADR-014 deploy only after CI.
+#
+# Trigger: when the "CI" workflow finishes on main (workflow_run). We only deploy if CI succeeded,
+# and we build exactly the commit CI tested (head_sha). A manual run is also possible.
+#
+# The Cesium ion token comes from the repository secret CESIUM_ION_TOKEN and is passed to Vite
+# as VITE_CESIUM_ION_TOKEN. It ends up in the public JavaScript (unavoidable for a static site),
+# so the production token must be restricted to the Pages URL on ion.cesium.com.
+name: Deploy to GitHub Pages
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; don't cancel a deploy that is already running.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Manual runs always build; automatic runs only when CI on main was green.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The commit CI tested (for manual runs this is empty, so the branch tip is used).
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci
+
+      - name: Build (production, base /himalaya-3d/)
+        run: npm run build
+        env:
+          VITE_CESIUM_ION_TOKEN: ${{ secrets.CESIUM_ION_TOKEN }}
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
