@@ -28,7 +28,8 @@ Details: [`docs/requirements.md`](docs/requirements.md) · Design: [`docs/archit
 
 ## Setup
 
-Requirements: Git, Node.js ≥ 20 (LTS), Python ≥ 3.11. GDAL is **not** needed.
+Requirements: Git, Node.js 22.17+, 24 or 26+ (an LTS release; CesiumJS and Vitest need this), Python ≥ 3.11.
+GDAL is **not** needed.
 
 ```bash
 git clone https://github.com/dipson6525/himalaya-3d.git
@@ -55,7 +56,7 @@ npm run dev        # http://localhost:5173
 | `npm run lint` | ESLint + Prettier check |
 | `npm run typecheck` | TypeScript strict type check |
 | `npm test` | Vitest unit tests |
-| `npm run e2e` | Build, then Playwright browser tests (first time: `npx playwright install chromium`) |
+| `npm run e2e` | Build, then Playwright browser tests (first time: `npx playwright install chromium`). Set `UPDATE_SCREENSHOTS=1` to refresh `docs/screenshots/` |
 
 ### Data prep (`data-prep/`)
 

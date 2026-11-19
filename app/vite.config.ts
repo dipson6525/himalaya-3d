@@ -37,7 +37,7 @@ export default defineConfig(({ mode }) => ({
       // stripBase: 4 removes the "node_modules/cesium/Build/Cesium" prefix from each path.
       targets: CESIUM_FOLDERS.map((folder) => ({
         src: `${CESIUM_BUILD}/${folder}/**/*`,
-        dest: 'cesium',
+        dest: 'cesium', // must match CESIUM_BASE_URL in src/engine/cesiumSetup.ts
         rename: { stripBase: 4 },
       })),
     }),

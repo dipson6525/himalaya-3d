@@ -47,8 +47,10 @@ window.CESIUM_BASE_URL = import.meta.env.BASE_URL + 'cesium/'
 //  Pages: "/himalaya-3d/" + "cesium/" = "/himalaya-3d/cesium/"
 ```
 
-Because both the copy destination and `CESIUM_BASE_URL` are derived from the same `base`, they
-cannot drift apart. The smoke test fails if any file 404s, so a mistake is caught before deploy.
+Both the copy destination and `CESIUM_BASE_URL` start from the same `base`, so the base path
+cannot get out of sync. The folder name `cesium` is still typed in two places (`dest: 'cesium'` in
+`vite.config.ts` and `'cesium/'` in `cesiumSetup.ts`), so each line has a comment pointing at the
+other, and the smoke test fails if any file 404s. A mismatch is caught before deploy.
 
 ### `CesiumGlobe.tsx` — React + Cesium lifecycle
 

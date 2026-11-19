@@ -1,5 +1,8 @@
-# deploy.yml — builds the site and publishes it to GitHub Pages on every push to main.
-# Owner: Sparsh Gorkhali (review). Related: ADR-001 static site.
+# deploy.yml — publishes the site to GitHub Pages after CI has passed on main.
+# Owner: Sparsh Gorkhali (review). Related: ADR-001 static site, ADR-014 deploy only after CI.
+#
+# Trigger: when the "CI" workflow finishes on main (workflow_run). We only deploy if CI succeeded,
+# and we build exactly the commit CI tested (head_sha). A manual run is also possible.
 #
 # The Cesium ion token comes from the repository secret CESIUM_ION_TOKEN and is passed to Vite
 # as VITE_CESIUM_ION_TOKEN. It ends up in the public JavaScript (unavoidable for a static site),
@@ -7,7 +10,9 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -23,12 +28,17 @@ concurrency:
 
 jobs:
   build:
+    # Manual runs always build; automatic runs only when CI on main was green.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: app
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The commit CI tested (for manual runs this is empty, so the branch tip is used).
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: actions/setup-node@v7
         with:

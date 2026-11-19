@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Deploy to GitHub Pages
 
-Deploys normally happen automatically on every push to `main` (`.github/workflows/deploy.yml`).
+Deploys normally happen automatically after CI passes on `main` (`.github/workflows/deploy.yml`, ADR-014).
 Use this checklist for a manual redeploy or to debug a broken live site.
 
 1. **Local production build** (in `app/`): `npm ci && npm run build`.
