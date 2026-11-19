@@ -1,0 +1,109 @@
+/*
+ * styles.css — global layout and colours for the app.
+ * Owner: Dipson Gurung (UI). Related NFR: responsive down to tablet width.
+ *
+ * Layout: a 3-row CSS grid (header / main / disclaimer). Main is a 2-column grid
+ * (globe / side panel) that stacks into one column on narrow screens.
+ */
+:root {
+  --bg: #0e1a24;
+  --panel: #13283a;
+  --text: #e8f1f8;
+  --muted: #a9c1d4;
+  --warn-bg: #4a3410;
+  font-family: system-ui, 'Segoe UI', 'Noto Sans Devanagari', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--panel);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  min-height: 0; /* lets the globe shrink instead of overflowing the page */
+}
+
+.globe-area,
+.globe {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.globe-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.globe-notice {
+  position: absolute;
+  z-index: 1;
+  top: 0.5rem;
+  left: 0.5rem;
+  max-width: min(28rem, 60%);
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: var(--warn-bg);
+  font-size: 0.85rem;
+}
+
+.side-panel {
+  padding: 1rem;
+  overflow-y: auto;
+  background: var(--panel);
+}
+
+.disclaimer {
+  padding: 0.5rem 1rem;
+  background: var(--warn-bg);
+  font-size: 0.85rem;
+}
+
+/* Tablet and narrower: stack the side panel under the globe. */
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .side-panel {
+    max-height: 40vh;
+  }
+}
