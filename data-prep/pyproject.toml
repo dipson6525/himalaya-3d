@@ -1,0 +1,21 @@
+# pyproject.toml — settings for ruff (linter/formatter) and pytest in data-prep/.
+# Owner: Unique Ghimire.
+
+[project]
+name = "himalaya-3d-data-prep"
+version = "0.1.0"
+description = "Scripts that turn OpenStreetMap and published trek notes into route GeoJSON"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/F: real errors, I: import order, UP: modern syntax, B: likely bugs
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Lets tests import the `prep` package however pytest is started.
+pythonpath = ["."]
