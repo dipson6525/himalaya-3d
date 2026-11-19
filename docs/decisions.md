@@ -30,8 +30,10 @@ the site lives under `/himalaya-3d/`, on localhost under `/`.
 to `<base>cesium/`. `src/engine/cesiumSetup.ts` sets
 `window.CESIUM_BASE_URL = import.meta.env.BASE_URL + 'cesium/'`.
 **Alternatives:** Vite `define` of a hard-coded path (easy to get out of sync with `base`).
-**Consequences:** One source of truth (`base` in `vite.config.ts`). The e2e smoke test fails on
-any 404, which catches mistakes before deploy.
+**Consequences:** The base path has one source of truth (`base` in `vite.config.ts`). The folder
+name `cesium` is still written twice (`dest` in `vite.config.ts`, the string in `cesiumSetup.ts`);
+comments on both lines point at each other, and the e2e smoke test fails on any 404, which
+catches a mismatch before deploy.
 
 ## ADR-004 · Vite `envDir` = project root (Sparsh, 2026-11-19)
 
@@ -83,16 +85,35 @@ TODO(team): verify against the real semester calendar and shift the due dates if
 
 ## ADR-011 · Node version (Team, 2026-11-19)
 
-**Decision:** `engines.node >= 20`. CI uses the current LTS (`lts/*`); the laptop runs Node 26.
+**Context:** CesiumJS 1.147 needs Node `>= 22.17`; Vitest 5 and vite-plugin-static-copy 4 do not
+support Node 23 or 25 (odd-numbered, non-LTS releases).
+**Decision:** `engines.node` is `^22.17.0 || ^24.0.0 || >=26.0.0`. CI uses the current LTS
+(`lts/*`); the laptop runs Node 26.
 
 ## ADR-012 · Only one MCP server: Playwright (Team, 2026-11-19)
 
-**Decision:** Playwright MCP (project scope, `.mcp.json`) lets Claude Code open the app and take
-screenshots. GitHub work uses the `gh` CLI, so no GitHub MCP server.
+**Decision:** Playwright MCP (project scope, `.mcp.json`, pinned to a fixed version so it does not
+change under us) lets Claude Code open the app and take screenshots. GitHub work uses the `gh` CLI, so no GitHub MCP server.
 **Note:** On native Windows, if Claude Code cannot start `npx` directly, change the command to
-`"cmd"` with args `["/c", "npx", "-y", "@playwright/mcp@latest"]` in a local override.
+`"cmd"` with args `["/c", "npx", "-y", "@playwright/mcp@0.0.86"]` in a local override.
 
 ## ADR-013 · LF line endings everywhere (Team, 2026-11-19)
 
 **Context:** Git on Windows converts to CRLF by default, which makes Prettier's check fail.
 **Decision:** `.gitattributes` forces `eol=lf` in the working copy.
+
+## ADR-014 · Deploy only after CI passes on main (Team, 2026-11-19)
+
+**Context:** If deploy ran on every push to main, a commit with failing tests would still be
+published.
+**Decision:** `deploy.yml` is triggered by `workflow_run` when the CI workflow completes on `main`,
+and only deploys if CI succeeded (plus a manual `workflow_dispatch`). It builds the exact commit CI tested.
+**Consequences:** A deploy starts a few minutes later (after CI). A red main never reaches the live site.
+
+## ADR-015 · Screenshots are written only on request (Team, 2026-11-19)
+
+**Context:** Writing `docs/screenshots/*.png` on every e2e run changed committed files, and the
+image depended on whether the local machine had a token.
+**Decision:** e2e tests save screenshots only when `UPDATE_SCREENSHOTS=1` is set
+(bash: `UPDATE_SCREENSHOTS=1 npm run e2e`; PowerShell: `$env:UPDATE_SCREENSHOTS=1; npm run e2e`). The PR author regenerates them deliberately and states in the PR
+whether a token was used.

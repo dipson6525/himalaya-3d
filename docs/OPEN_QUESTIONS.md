@@ -8,7 +8,7 @@ resolved. Newest at the top.
 | Q1 | GitHub usernames of the teammates who are not `dipson6525`, so they can be invited as collaborators. | M0 | Team | Open |
 | Q2 | Has the `CESIUM_ION_TOKEN` repository secret been set? (`gh secret set CESIUM_ION_TOKEN`) | M0 deploy | Repo owner | Open |
 | Q3 | After the first deploy: restrict the production ion token's Allowed URLs to the GitHub Pages URL on ion.cesium.com. | M0 deploy | Token owner | Open |
-| Q4 | Do FR1–FR9 in `docs/requirements.md` match the numbering in the submitted proposal? | M1 | Team | Open |
+| Q4 | Do FR1–FR9 in `docs/requirements.md` match the numbering in the submitted proposal? Are the NFR1 (≥ 30 fps) and NFR2 (≤ ~10 s first load) targets, taken from the team's setup brief, the same as in the proposal? | M1 | Team | Open |
 | Q5 | Real date of semester week 1 (milestone due dates assume Mon 2026-11-16). | M1 | Team | Open |
 | Q6 | Fourth route: Manaslu Circuit (proposed) or Mardi Himal? | M2 | Team (Unique) | Open |
 | Q7 | Nepali UI strings are machine-drafted — need review by a native speaker (see `docs/i18n-review.md`). | M6 | Team | Open |

@@ -17,6 +17,7 @@ declare global {
   }
 }
 
+// "cesium/" must match `dest: 'cesium'` in vite.config.ts (the e2e test fails on any 404 if not).
 window.CESIUM_BASE_URL = `${import.meta.env.BASE_URL}cesium/`;
 
 /** The Cesium ion token, or an empty string when none was provided at build time. */

@@ -26,6 +26,11 @@ what the TEAM must do next, open questions.
 - Docs: decisions ADR-001–013, open questions, glossary, i18n review list, viva notes for all
   three members (M0 scope), plan for M0–M2 (`docs/plans/m0-m2-plan.md`).
 
+- Code review (code-reviewer subagent) before the PR. Fixed: Node `engines` range (CesiumJS needs
+  ≥ 22.17; Vitest/static-copy skip Node 23/25), deploy now waits for green CI on main (ADR-014),
+  credits test uses `toBeVisible`, screenshots only written with `UPDATE_SCREENSHOTS=1` (ADR-015),
+  Playwright MCP pinned to 0.0.86, wording about the duplicated `cesium` folder name corrected.
+
 **PR:** `team/m0-scaffold` → main (M0 scaffolding; may be merged once CI is green).
 
 **Test evidence (local, Windows, 2026-11-19)**
