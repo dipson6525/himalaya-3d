@@ -130,3 +130,24 @@ commits are credited to the owner's GitHub account.
 needs a force-push, which our ground rules forbid, so the team chose to keep that history as it is.
 **Consequences:** Claude stays in GitHub's contributor list because of those 8 M0 commits; no later
 commit adds to it. AI assistance is disclosed in `docs/AI_USAGE.md` (and in the report).
+
+## ADR-018 · UI structure and shared state (Dipson, 2026-11-20)
+
+**Context:** From M3 on, several features built by different people must work on one screen and
+share values such as the selected trek (issue #7, `docs/ui-design.md`).
+**Decision:**
+- Layout: globe as main content; a 320 px side panel with three tabs (Trek, Plan, Layers); an
+  elevation-profile strip under the globe; the medical disclaimer as a footer row of the page grid;
+  stacked in one column at 900 px or narrower.
+- Credits: added to Cesium's own credit area with `viewer.creditDisplay.addStaticCredit`, plus the
+  Open-Meteo credit next to weather values in the panel.
+- Shared state: values used by several branches of the component tree live in `App` and are passed
+  down through one React context (`AppState`); the Cesium Viewer is shared through `ViewerContext`.
+  Derived values (acclimatization warnings) are recalculated, not stored. Per-frame flythrough
+  positions stay inside the engine, not in React state.
+**Alternatives:** a state library such as Redux or Zustand (more to learn and explain for about
+eight shared values); passing props down through every level ("prop drilling"), which gets messy
+once the globe and the side panel both need the same value; the profile as a side-panel tab (too
+narrow for a multi-day chart).
+**Consequences:** One place to look for shared values. Anything that changes every frame must not
+be put into `AppState`, or the whole page re-renders 60 times a second.
