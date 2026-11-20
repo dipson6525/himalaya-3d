@@ -12,7 +12,7 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **CI** | Continuous Integration — GitHub Actions runs lint, type checks and tests on every push/PR. |
 | **Bounding box** | The latitude/longitude rectangle a value must fall in. Our route validator uses a loose box around Nepal to catch swapped coordinates. |
 | **Devanagari** | The script Nepali is written in (Unicode block U+0900–U+097F). |
-| **Douglas–Peucker** | Line-simplification algorithm that drops points close to the straight line between neighbours. |
+| **Douglas–Peucker** | Line simplification: find the point farthest from the line joining the first and last points; if it is within the tolerance drop everything between them, otherwise keep it and repeat on both halves. |
 | **ECEF** | Earth-Centred, Earth-Fixed coordinates: x, y, z in metres from the Earth's centre. Cesium's `Cartesian3`. |
 | **FeatureCollection** | A GeoJSON object holding a list of Features; each route file is one. A Feature = geometry + properties. |
 | **envDir** | The Vite setting for which folder `.env*` files are read from (ours: project root). |

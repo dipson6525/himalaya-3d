@@ -17,7 +17,9 @@ what the TEAM must do next, open questions.
 - `data-prep/tests/test_schema.py`: one test per rule with synthetic data, plus a test that runs on
   every real route file (skipped while `data/routes/` has none).
 - `app/src/features/routes/types.ts`: matching TypeScript types for M3.
-- Viva notes (Unique): validator walkthrough, worked examples, questions 7–14, exercises 5–7.
+- Viva notes (Unique): validator walkthrough, code details, limits, worked examples, questions
+  7–18, exercises 5–7, AI-use section. Checked by the code-reviewer and viva-examiner subagents;
+  their findings are fixed (see PR #38).
 
 **Test evidence (local, Windows)**
 
@@ -28,7 +30,8 @@ data-prep> python -m prep.schema → No .geojson files in data/routes yet.
 app> npm run lint / typecheck / test → clean · clean · 5 passed (incl. route type guards)
 ```
 
-**TEAM TODO:** Unique reviews and merges the PR; confirm the 4th route (Q6) before #12.
+**TEAM TODO:** Unique reviews and merges PR #38; confirm the 4th route (Q6) before #12; decide on
+branch protection for `main` (Q12).
 
 ---
 

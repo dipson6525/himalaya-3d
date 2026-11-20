@@ -5,7 +5,8 @@ Owner: Unique Ghimire · Issue #6 · Related FR: FR2 (routes), FR3 (stops)
 Every trek is one file in `data/routes/`, named `<route-id>.geojson`, for example
 `data/routes/everest-base-camp.geojson`. The web app loads these files as they are, so they must
 follow the rules below. `data-prep/prep/schema.py` checks every rule, and CI runs it on every
-pull request (`pytest`), so a broken route file can never reach `main`.
+pull request (`pytest`), so a broken route file turns the PR red. (`main` has no branch protection,
+so the team rule is: never merge a PR whose CI is red.)
 
 ## Shape of a file
 
