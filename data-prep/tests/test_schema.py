@@ -14,6 +14,7 @@ import pytest
 from prep import paths
 from prep.schema import (
     load_source_ids,
+    main,
     parse_source_ids,
     validate_file,
     validate_route,
@@ -107,10 +108,25 @@ def test_top_level_must_be_feature_collection():
     ]
 
 
-def test_needs_exactly_one_route_feature():
+@pytest.mark.parametrize("route_count", [0, 2])
+def test_needs_exactly_one_route_feature(route_count):
     data = make_route()
-    data["features"].append(json.loads(json.dumps(data["features"][0])))  # a copy
+    route_feature = data["features"].pop(0)
+    for _ in range(route_count):
+        data["features"].insert(0, json.loads(json.dumps(route_feature)))  # a fresh copy
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "exactly 1 route")
+
+
+def test_properties_must_be_an_object():
+    data = make_route()
+    data["features"].append({"type": "Feature", "properties": None})
+    assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "'properties' must be")
+
+
+def test_route_geometry_must_be_line_string():
+    data = make_route()
+    data["features"][0]["geometry"] = {"type": "Point", "coordinates": [85.0, 28.0]}
+    assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "must be a LineString")
 
 
 def test_needs_at_least_two_stops():
@@ -200,13 +216,38 @@ def test_geometry_source_must_be_listed():
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "not a Source ID")
 
 
+def test_source_must_be_one_id_not_a_list():
+    data = make_route()
+    stop_props(data, 0)["altitude_source"] = ["OSM", "TEST"]
+    assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "one Source ID as text")
+
+
 # ---- days and altitudes ---------------------------------------------------------------------
 
 
-def test_days_must_increase_in_walking_order():
+@pytest.mark.parametrize("second_day", [1, 0.5])
+def test_days_must_increase_in_walking_order(second_day):
     data = make_route()
-    stop_props(data, 1)["day"] = 1  # same day as the first stop
+    stop_props(data, 1)["day"] = second_day
+    errors = validate_route(data, KNOWN_SOURCES)
+    if second_day == 1:  # same day as the first stop
+        assert_one_error_containing(errors, "larger than the previous")
+    else:  # not a whole number at all: reported once, by the day check
+        assert_one_error_containing(errors, "whole number")
+
+
+def test_decreasing_days_are_rejected():
+    data = make_route()
+    data["features"].append(make_stop("stop-c", 2, 1200, [85.1, 28.05]))
+    stop_props(data, 1)["day"] = 3  # days: 1, 3, 2
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "larger than the previous")
+
+
+def test_first_stop_must_be_day_one():
+    data = make_route()
+    stop_props(data, 0)["day"] = 5
+    stop_props(data, 1)["day"] = 6
+    assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "first stop must be day 1")
 
 
 @pytest.mark.parametrize("bad_day", [0, -1, 1.5, "2", True])
@@ -216,17 +257,24 @@ def test_day_must_be_whole_number_from_one(bad_day):
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "whole number")
 
 
-@pytest.mark.parametrize("bad_altitude", [-5, 9000, "3440", True, None])
+@pytest.mark.parametrize("bad_altitude", [-5, 9000, "3440", True, None, float("nan"), float("inf")])
 def test_altitude_must_be_a_sensible_number(bad_altitude):
+    """NaN and Infinity matter: Python's json.loads accepts the words NaN and Infinity."""
     data = make_route()
     stop_props(data, 0)["altitude_m"] = bad_altitude
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "altitude_m")
 
 
-@pytest.mark.parametrize("edge_altitude", [0, 8849, 3000.5])
+@pytest.mark.parametrize("edge_altitude", [0, 8849])
 def test_altitude_limits_are_inclusive(edge_altitude):
     data = make_route()
     stop_props(data, 0)["altitude_m"] = edge_altitude
+    assert validate_route(data, KNOWN_SOURCES) == []
+
+
+def test_decimal_altitude_is_allowed():
+    data = make_route()
+    stop_props(data, 0)["altitude_m"] = 1000.5
     assert validate_route(data, KNOWN_SOURCES) == []
 
 
@@ -249,6 +297,15 @@ def test_position_with_height_is_rejected():
     data = make_route()
     data["features"][1]["geometry"]["coordinates"] = [85.0, 28.0, 1000]
     assert_one_error_containing(validate_route(data, KNOWN_SOURCES), "[longitude, latitude]")
+
+
+def test_many_bad_positions_are_summarised():
+    """A whole trail saved as [lat, lon] gives 5 messages and a count, not one per position."""
+    data = make_route()
+    data["features"][0]["geometry"]["coordinates"] = [[28.0, 85.0]] * 8
+    errors = validate_route(data, KNOWN_SOURCES)
+    assert len(errors) == 6, errors
+    assert "and 3 more bad positions" in errors[-1]
 
 
 def test_stop_geometry_must_be_point():
@@ -277,6 +334,12 @@ def test_parse_source_ids_reads_only_the_sources_table():
     assert parse_source_ids(markdown) == {"OSM", "NTB"}
 
 
+def test_parse_source_ids_skips_any_header_wording():
+    """The first table row is the header whatever it says; spaces inside backticks are trimmed."""
+    markdown = "## Sources\n| Source id | Title |\n|:---|---|\n| ` NTB ` | A book |"
+    assert parse_source_ids(markdown) == {"NTB"}
+
+
 def test_real_route_sources_file_lists_osm():
     assert "OSM" in load_source_ids()
 
@@ -287,10 +350,35 @@ def test_invalid_json_file_is_reported(tmp_path):
     assert_one_error_containing(validate_file(path, KNOWN_SOURCES), "not valid JSON")
 
 
+def test_utf16_file_is_reported_not_crashed(tmp_path):
+    """PowerShell 5 saves files as UTF-16 by default: that must give an error, not a crash."""
+    path = tmp_path / "test-route.geojson"
+    path.write_text(json.dumps(make_route(), ensure_ascii=False), encoding="utf-16")
+    assert_one_error_containing(validate_file(path, KNOWN_SOURCES), "UTF-8")
+
+
 def test_valid_file_on_disk_passes(tmp_path):
     path = tmp_path / "test-route.geojson"
     path.write_text(json.dumps(make_route(), ensure_ascii=False), encoding="utf-8")
     assert validate_file(path, KNOWN_SOURCES) == []
+
+
+def test_main_exit_code_is_0_for_valid_and_1_for_invalid(tmp_path, monkeypatch, capsys):
+    """main() reads data/routes/; we point it at a temporary folder instead.
+    The real route-sources.md lists OSM, so the synthetic stops cite OSM here."""
+    monkeypatch.setattr(paths, "ROUTES_DIR", tmp_path)
+    data = make_route()
+    for number in (0, 1):
+        stop_props(data, number)["altitude_source"] = "OSM"
+    path = tmp_path / "test-route.geojson"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    assert main() == 0
+    assert "OK   test-route.geojson" in capsys.readouterr().out
+
+    stop_props(data, 0)["altitude_m"] = -1
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    assert main() == 1
+    assert "FAIL test-route.geojson" in capsys.readouterr().out
 
 
 # ---- the real data --------------------------------------------------------------------------

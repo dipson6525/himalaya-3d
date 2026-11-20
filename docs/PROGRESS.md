@@ -23,9 +23,9 @@ what the TEAM must do next, open questions.
 
 ```
 data-prep> ruff check .       → All checks passed!
-data-prep> pytest -q          → 46 passed, 1 skipped (the real-files test: no route files yet)
+data-prep> pytest -q          → 59 passed, 1 skipped (the real-files test: no route files yet)
 data-prep> python -m prep.schema → No .geojson files in data/routes yet.
-app> npm run lint / typecheck / test → clean · clean · 3 passed
+app> npm run lint / typecheck / test → clean · clean · 5 passed (incl. route type guards)
 ```
 
 **TEAM TODO:** Unique reviews and merges the PR; confirm the 4th route (Q6) before #12.

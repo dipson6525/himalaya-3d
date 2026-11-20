@@ -28,6 +28,9 @@ MIN_LON, MAX_LON = 79.5, 88.5
 MIN_ALTITUDE_M = 0
 MAX_ALTITUDE_M = 8849
 
+# At most this many bad positions are listed per trail line (the rest are counted).
+MAX_POSITION_ERRORS = 5
+
 # Route and stop ids: lowercase words joined by single hyphens, e.g. "namche-bazaar".
 ID_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
@@ -66,20 +69,25 @@ def parse_source_ids(markdown: str) -> set[str]:
     """Return the Source IDs listed in the "## Sources" table of route-sources.md.
 
     The table looks like:  | Source ID | Title | URL | ... |
-    We read the first cell of every row in that section, skipping the header row and the
-    "| --- |" separator row. Backticks around an id (`OSM`) are removed.
+    We read the first cell of every row in that section. The first row of the table is the
+    header and the "| --- |" row is the separator, so both are skipped. Backticks around an
+    id (`OSM`) are removed.
     """
     source_ids: set[str] = set()
     in_sources_section = False
+    table_rows_seen = 0
     for line in markdown.splitlines():
         if line.startswith("## "):
             in_sources_section = line.strip() == "## Sources"
             continue
         if not in_sources_section or not line.startswith("|"):
             continue
-        first_cell = line.split("|")[1].strip().strip("`")
-        if first_cell in ("", "Source ID") or set(first_cell) <= {"-", ":"}:
-            continue  # header row, separator row or empty cell
+        table_rows_seen += 1
+        first_cell = line.split("|")[1].strip().strip("`").strip()
+        is_header = table_rows_seen == 1
+        is_separator = first_cell != "" and set(first_cell) <= {"-", ":"}
+        if is_header or is_separator or first_cell == "":
+            continue
         source_ids.add(first_cell)
     return source_ids
 
@@ -103,7 +111,7 @@ def _is_number(value: object) -> bool:
 
 def _has_devanagari(text: str) -> bool:
     """True if the text contains at least one Devanagari character (Unicode U+0900 to U+097F)."""
-    return any("ऀ" <= character <= "ॿ" for character in text)
+    return any("\u0900" <= character <= "\u097f" for character in text)
 
 
 def _check_position(position: object, where: str) -> list[str]:
@@ -161,7 +169,11 @@ def _check_id(props: dict, where: str) -> list[str]:
 def _check_source(props: dict, name: str, known_sources: set[str], where: str) -> list[str]:
     """Check that a source property names a Source ID listed in route-sources.md."""
     value = props.get(name)
-    if name in props and value not in known_sources:
+    if name not in props:
+        return []  # already reported as missing
+    if not isinstance(value, str):
+        return [f"{where}: '{name}' must be one Source ID as text, got {value!r}"]
+    if value not in known_sources:
         return [f"{where}: '{name}' {value!r} is not a Source ID in route-sources.md"]
     return []
 
@@ -181,8 +193,8 @@ def _check_route_feature(
     for name in ("name_en", "name_ne", "description_en", "description_ne"):
         errors += _check_text(props, name, where)
     errors += _check_source(props, "geometry_source", known_sources, where)
-    if expected_id is not None and props.get("id") != expected_id:
-        errors.append(f"{where}: id {props.get('id')!r} must match the file name '{expected_id}'")
+    if expected_id is not None and "id" in props and props["id"] != expected_id:
+        errors.append(f"{where}: id {props['id']!r} must match the file name '{expected_id}'")
 
     geometry = feature.get("geometry")
     if not isinstance(geometry, dict) or geometry.get("type") != "LineString":
@@ -190,9 +202,17 @@ def _check_route_feature(
     coordinates = geometry.get("coordinates")
     if not isinstance(coordinates, list) or len(coordinates) < 2:
         return errors + [f"{where}: LineString needs at least 2 positions"]
+
+    # A trail can have thousands of positions; if they are all wrong (e.g. every one is
+    # [lat, lon]) we show the first few and a count, instead of thousands of lines.
+    position_errors: list[str] = []
     for number, position in enumerate(coordinates):
-        errors += _check_position(position, f"{where}, position {number}")
-    return errors
+        position_errors += _check_position(position, f"{where}, position {number}")
+    if len(position_errors) > MAX_POSITION_ERRORS:
+        hidden = len(position_errors) - MAX_POSITION_ERRORS
+        position_errors = position_errors[:MAX_POSITION_ERRORS]
+        position_errors.append(f"{where}: ... and {hidden} more bad positions")
+    return errors + position_errors
 
 
 def _check_stop_feature(feature: dict, where: str, known_sources: set[str]) -> list[str]:
@@ -237,7 +257,7 @@ def validate_route(
 
     Steps: 1) the top level is a FeatureCollection; 2) sort features into route and stops;
     3) check each feature; 4) check rules that compare stops with each other
-    (unique ids, days increasing in walking order).
+    (unique stop ids, first stop on day 1, days increasing in walking order).
     """
     if not isinstance(data, dict) or data.get("type") != "FeatureCollection":
         return ["top level must be a GeoJSON FeatureCollection"]
@@ -271,8 +291,8 @@ def validate_route(
         errors += _check_route_feature(feature, where, known_sources, expected_id)
 
     seen_ids: set[str] = set()
-    previous_day = 0
-    for index, feature in stops:
+    previous_day = 0  # 0 = no valid day seen yet
+    for stop_number, (index, feature) in enumerate(stops):
         props = feature["properties"]
         where = f"feature {index} (stop {props.get('id')!r})"
         errors += _check_stop_feature(feature, where, known_sources)
@@ -280,12 +300,15 @@ def validate_route(
         stop_id = props.get("id")
         if isinstance(stop_id, str):
             if stop_id in seen_ids:
-                errors.append(f"{where}: id is used by another stop")
+                errors.append(f"{where}: id is already used by another stop")
             seen_ids.add(stop_id)
 
         day = props.get("day")
-        if isinstance(day, int) and not isinstance(day, bool) and day >= 1:
-            if day <= previous_day:
+        is_valid_day = isinstance(day, int) and not isinstance(day, bool) and day >= 1
+        if is_valid_day:
+            if stop_number == 0 and day != 1:
+                errors.append(f"{where}: the first stop must be day 1, got day {day}")
+            if previous_day != 0 and day <= previous_day:
                 errors.append(f"{where}: day {day} must be larger than the previous stop's day")
             previous_day = day
     return errors
@@ -295,6 +318,8 @@ def validate_file(path: Path, known_sources: set[str]) -> list[str]:
     """Load one .geojson file and validate it. The route id must match the file name."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        return ["file must be saved as UTF-8 text (Windows PowerShell 5 may save UTF-16)"]
     except json.JSONDecodeError as error:
         return [f"not valid JSON: {error}"]
     return validate_route(data, known_sources, expected_id=path.stem)

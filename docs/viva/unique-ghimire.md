@@ -25,7 +25,8 @@ environment, shared folder paths, a citation template, and smoke tests.
 | `docs/data-schema.md` | The rules every route file must follow | FR2, FR3 |
 | `data-prep/prep/schema.py` | Validator: checks a route file and lists every problem | FR2, FR3 |
 | `data-prep/tests/test_schema.py` | One test per rule, plus a check of every real route file | FR2, FR3 |
-| `app/src/features/routes/types.ts` | The same shape as TypeScript types, for the front end | FR2, FR3 |
+| `app/src/features/routes/types.ts` | The same shape as TypeScript types + type guards, for the front end | FR2, FR3 |
+| `app/src/features/routes/types.test.ts` | Vitest check of the type guards | FR2, FR3 |
 
 Coming next: Overpass pipeline (#8), four routes (#9–#12), altitude cross-check (#13),
 acclimatization rules (#23), itinerary UI (#24).
@@ -138,7 +139,12 @@ route-sources.md ──parse_source_ids──► {"OSM", ...} = known_sources
     every problem in one run.
 13. **What happens if `day` is `true` in the JSON?** — In Python `True` is an `int` subclass, so
     the validator checks `isinstance(day, bool)` first and rejects it.
-14. **What would you improve?** — Check that each stop lies close to the trail line (needs
+14. **Why must the first stop be day 1?** — The acclimatization checker (M5) builds one sleeping
+    altitude per night starting at night 1; a file starting at day 5 would leave nights 1–4 empty.
+15. **How does the front end know a feature is the route and not a stop?** — The type guards
+    `isRouteFeature` / `isStopFeature` in `types.ts` check `properties.kind`; after the check
+    TypeScript knows the geometry type (tested in `types.test.ts`).
+16. **What would you improve?** — Check that each stop lies close to the trail line (needs
     shapely + a metric projection); validate `route-sources.md` itself (no duplicate IDs).
 
 ## Prove you understand it (do these by hand, no AI)
@@ -158,4 +164,4 @@ route-sources.md ──parse_source_ids──► {"OSM", ...} = known_sources
 ## Changelog
 
 - 2026-11-19 — M0: venv, pinned requirements, paths, cache policy, citation template.
-- 2026-11-20 — M1 #6: route schema, validator walkthrough, worked examples, questions 7–14, exercises 5–7.
+- 2026-11-20 — M1 #6: route schema, validator walkthrough, worked examples, questions 7–16, exercises 5–7.

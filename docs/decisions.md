@@ -144,7 +144,8 @@ property names are rejected. The validator (`data-prep/prep/schema.py`) is plain
 in CI through pytest; a matching TypeScript type lives in `app/src/features/routes/types.ts`.
 **Alternatives:** a JSON Schema file plus the `jsonschema` library (cannot express "days increase"
 or "Source ID listed in a Markdown table", and is harder to explain); one big file for all routes
-(every edit would touch everyone's data).
+(every edit would touch everyone's data). The early plan had a `region` field; it was left out until a
+feature needs it.
 **Consequences:** A route line must be one continuous LineString; if OSM has gaps, the pipeline
 (#8) has to deal with them and record how. Schema changes need the doc, validator, tests and
 TypeScript types updated together.
