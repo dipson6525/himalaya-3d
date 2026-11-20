@@ -19,8 +19,9 @@ Use this whenever you add a route, add/edit a stop, or touch `data-prep/` or `da
 
 ## Steps
 
-1. **Check the schema** in `docs/data-schema.md`. Each stop needs: `name_en`, `name_ne`,
-   `altitude_m`, `lat`, `lon`, `description_en`, `description_ne`, `day`, plus the source id.
+1. **Check the schema** in `docs/data-schema.md`. Each stop needs `kind`, `id`, `name_en`,
+   `name_ne`, `day`, `altitude_m`, `altitude_source`, `description_en`, `description_ne`; its
+   position is the Point geometry `[lon, lat]`. Validate with `python -m prep.schema`.
 2. **Activate the venv:** `cd data-prep` then `.venv\Scripts\activate` (Windows) or
    `source .venv/bin/activate`.
 3. **Fetch trail ways (only if not cached):**

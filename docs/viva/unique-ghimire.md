@@ -22,9 +22,13 @@ environment, shared folder paths, a citation template, and smoke tests.
 | `data-prep/tests/test_environment.py` | Proves the libraries import and folders exist | — |
 | `data-prep/cache/` | Committed Overpass responses (ODbL) | FR2 |
 | `data/routes/route-sources.md` | Every altitude's source + disagreements table | FR3, NFR9 |
+| `docs/data-schema.md` | The rules every route file must follow | FR2, FR3 |
+| `data-prep/prep/schema.py` | Validator: checks a route file and lists every problem | FR2, FR3 |
+| `data-prep/tests/test_schema.py` | One test per rule, plus a check of every real route file | FR2, FR3 |
+| `app/src/features/routes/types.ts` | The same shape as TypeScript types, for the front end | FR2, FR3 |
 
-Coming next: data schema + validator (#6), Overpass pipeline (#8), four routes (#9–#12),
-altitude cross-check (#13), acclimatization rules (#23), itinerary UI (#24).
+Coming next: Overpass pipeline (#8), four routes (#9–#12), altitude cross-check (#13),
+acclimatization rules (#23), itinerary UI (#24).
 
 ## Module walkthroughs
 
@@ -46,6 +50,46 @@ Overpass is a free service run by volunteers. Each query can be heavy. We query 
 raw JSON in `data-prep/cache/`, and every later run reads the file. This is polite, makes the
 pipeline reproducible offline, and lets reviewers see exactly what data we started from.
 
+### The route schema and validator (`docs/data-schema.md`, `prep/schema.py`)
+
+**What a route file is.** One GeoJSON FeatureCollection per trek: one `route` feature (the trail as
+a LineString) and one `stop` feature per overnight stop (a Point), in walking order. Every feature
+has `properties.kind` so the app can tell them apart.
+
+**Data flow of the validator.**
+
+```
+route file ──json.loads──► validate_route(data, known_sources, expected_id)
+                              1. top level is a FeatureCollection?
+                              2. sort features into route / stops (by kind)
+                              3. check each feature: names of properties, text, id, source,
+                                 day, altitude, geometry, positions
+                              4. compare stops: unique ids, days increasing
+                           ──► list of error messages ([] = valid)
+route-sources.md ──parse_source_ids──► {"OSM", ...} = known_sources
+```
+
+**Key functions.**
+- `validate_route` — the whole-file check above; returns every problem, not just the first, so
+  you can fix a file in one pass.
+- `validate_file` — loads a `.geojson` file, reports bad JSON, and uses the file name as the
+  expected route id.
+- `parse_source_ids` — reads the first column of the "## Sources" table in `route-sources.md`.
+- `_check_position` — `[lon, lat]` inside a loose box around Nepal; if the numbers look swapped
+  it says "looks like [lat, lon]".
+- `_check_text` — non-empty, no `TODO`, and Nepali fields must contain Devanagari.
+- `main` — `python -m prep.schema` checks every file in `data/routes/` and exits with 1 on errors.
+
+**Why this design.**
+- *Return a list of messages instead of raising an exception* — the first error would hide the rest.
+- *Plain Python, no JSON-Schema library* — every rule is a few readable lines you can explain;
+  a JSON Schema could not express "days increase" or "Source ID listed in a Markdown table" anyway.
+- *Positions only in the geometry* — storing `lat`/`lon` twice would let the copies disagree.
+- *No rest-day field* — nights at a stop = next stop's `day` − this stop's `day`, so the data
+  cannot contradict itself.
+- *Reject `TODO` and unknown property names* — makes "never invent data" and typo-catching
+  automatic in CI instead of relying on reviewers.
+
 ## Key concepts from first principles
 
 - **GeoJSON**: a JSON format for map features. Coordinates are `[longitude, latitude]` — note
@@ -55,11 +99,20 @@ pipeline reproducible offline, and lets reviewers see exactly what data we start
   `(0,0) (1,0) (2,0)` → the middle point lies exactly on the line, so it is removed.
 - **ODbL**: OpenStreetMap's licence — you may use the data if you credit "© OpenStreetMap
   contributors" and share derived databases under the same licence.
+- **Bounding box**: the smallest latitude/longitude rectangle you accept. Ours (26.0–31.0 °N,
+  79.5–88.5 °E) is a loose box around Nepal. Worked example of a swap: a stop near
+  `[85.0, 28.0]` typed as `[28.0, 85.0]` has "longitude" 28.0 (outside 79.5–88.5) but both
+  numbers fit the box the other way round, so the validator says "looks like [lat, lon]".
+- **Nights from days (worked example with the test data)**: stop A `day: 1`, stop B `day: 3`
+  → nights at A = 3 − 1 = 2, so day 2 is a rest day at A. Sleeping altitudes per night:
+  night 1 = A, night 2 = A, night 3 = B. M5's checker starts from exactly this list.
+- **Devanagari**: the script Nepali is written in; Unicode block U+0900–U+097F. Checking for at
+  least one such character catches English accidentally pasted into `name_ne`.
 - **The acclimatization rule (preview for M5)**: above 3,000 m, don't raise your *sleeping*
   altitude by more than 500 m per day, and take a rest day every 3–4 days (Luks et al. 2019;
   unchanged in the 2024 update).
 
-## Likely viva questions (M0 part — more added with each feature)
+## Likely viva questions
 
 1. **Why Python for data prep and not the browser?** — It runs once, offline; Python has mature
    geometry libraries; the browser only loads the small result.
@@ -70,7 +123,23 @@ pipeline reproducible offline, and lets reviewers see exactly what data we start
    `route-sources.md`; differences > 50 m vs other sources or terrain are flagged, not hidden.
 5. **Why commit the cache?** — Reproducibility and Overpass etiquette.
 6. **What is GeoJSON coordinate order?** — `[lon, lat]`.
-7. **What would you improve?** — Automatic schema validation in CI for every route (coming in #6).
+7. **How does CI stop a broken route file reaching `main`?** — `test_every_route_file_follows_the_schema`
+   runs `validate_file` on each file in `data/routes/`; any error fails `pytest` in the data-prep job.
+8. **Why are `lat`/`lon` not properties?** — They are already the Point's coordinates; a second
+   copy could disagree with the first.
+9. **How do you represent a rest day?** — Not with a field: the next stop's `day` jumps by 2.
+   Nights at a stop = next day − this day.
+10. **Why reject `TODO` in `data/routes/`?** — The app shows these values to trekkers; unverified
+    numbers must never look like facts. Drafts stay in data-prep working files.
+11. **Why plain Python instead of a JSON Schema library?** — Some of our rules (days increasing,
+    Source IDs from a Markdown table) cannot be expressed in JSON Schema, and plain code is easy
+    to explain line by line.
+12. **Why does the validator return a list instead of stopping at the first error?** — So you see
+    every problem in one run.
+13. **What happens if `day` is `true` in the JSON?** — In Python `True` is an `int` subclass, so
+    the validator checks `isinstance(day, bool)` first and rejects it.
+14. **What would you improve?** — Check that each stop lies close to the trail line (needs
+    shapely + a metric projection); validate `route-sources.md` itself (no duplicate IDs).
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -79,7 +148,14 @@ pipeline reproducible offline, and lets reviewers see exactly what data we start
 2. Add a `GPX_DIR` constant to `paths.py` for raw GPX files and a test that it is under `data-prep/`.
 3. Explain, using a sketch, how Douglas–Peucker decides which points to drop.
 4. Find one published source for Namche Bazaar's altitude and add it to `route-sources.md`.
+5. Add an optional `notes_en` property to stops: update `docs/data-schema.md`,
+   `STOP_PROPERTIES` handling (it must be allowed but not required), a test, and `types.ts`.
+6. Change the bounding box so it is tighter on the west side, predict which existing test (if any)
+   breaks, then run `pytest` to check your prediction. Revert afterwards.
+7. Write the list of sleeping altitudes per night for a 3-stop synthetic route with days 1, 2, 4
+   using the "nights from days" rule — on paper.
 
 ## Changelog
 
 - 2026-11-19 — M0: venv, pinned requirements, paths, cache policy, citation template.
+- 2026-11-20 — M1 #6: route schema, validator walkthrough, worked examples, questions 7–14, exercises 5–7.
