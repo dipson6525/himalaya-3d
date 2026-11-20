@@ -5,6 +5,26 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-20 · M0 follow-up: contributors list
+
+**Done**
+
+- PR #36 (M0 scaffolding) merged after CI passed (web: lint, typecheck, 3 Vitest tests, build,
+  Playwright 1 passed on Ubuntu with SwiftShader; data-prep: ruff, 3 pytest). Deploy workflow ran
+  after CI and succeeded. Issues #1–#5 closed.
+- New commits and PRs carry no Claude attribution (ADR-016): `.claude/settings.json` turns off the
+  co-author trailer and PR footer, and this repo's git email typo is fixed so commits are credited
+  to the GitHub account. The team chose not to rewrite `main`, so the first 8 M0 commits keep their
+  trailers and Claude stays in the contributor list for those.
+
+**TEAM TODO**
+
+1. `gh secret set CESIUM_ION_TOKEN` — the live site still uses the offline globe without it. (Q2)
+2. Fix the laptop's global git name and email (Q10).
+3. Teammates' GitHub usernames (Q1); confirm FRs/NFRs against the proposal PDF (Q4).
+
+---
+
 ## 2026-11-19 · M0 Requirements & setup
 
 **Done (by Claude Code, for team review)**
