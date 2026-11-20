@@ -16,3 +16,4 @@ resolved. Newest at the top.
 | Q9 | KU report format/template for the final report outline. | M8 | Team | Open |
 | Q10 | This laptop's global git `user.name` contains stray text, and the global `user.email` has a typo in the domain (`student.kuedu.np` instead of `student.ku.edu.np`). Fix both with `git config --global ...`. This repo has correct local overrides. | Now | Laptop owner | Open |
 | Q11 | Add the `project` scope to gh if you want a GitHub Project board: `gh auth refresh -s project`. | Optional | Repo owner | Open |
+| Q12 | Turn on branch protection for `main` (require the CI checks to pass before merging)? Without it, a red PR can still be merged by mistake. | M1 | Team | Open |
