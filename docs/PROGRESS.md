@@ -5,6 +5,32 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · M2 #8 Data-prep pipeline (owner: Unique)
+
+**Done (for Unique to review)**
+
+- `prep/overpass.py`: one cached Overpass request per route; User-Agent, `[timeout:60]` + 90 s
+  request timeout, no retry loop, refuses to run when `CI` is set; the cache file keeps the query,
+  UTC fetch date and ODbL licence line, and a cache made by a different query is refused.
+- `prep/build_route.py`: TOML route spec → ways → one merged trail (stops on gaps, never bridges
+  them) → oriented to the first stop → Douglas–Peucker in metres (UTM zone of the line, default
+  5 m) → stops added → schema check → `data/routes/<id>.geojson`, one feature per line.
+- `route-specs/_template.toml` + README; ADR-019; route-data skill, data-prep README and
+  route-sources.md updated; glossary (EPSG, linemerge, TOML, UTM); Unique's viva notes.
+- No real Overpass query yet: choosing the EBC ways is #9.
+
+**Test evidence (local, Windows)**
+
+```
+data-prep> ruff check .   → All checks passed!
+data-prep> pytest -q -W error::DeprecationWarning → 92 passed, 1 skipped
+```
+
+**TEAM TODO:** review #38 first (this branch builds on it), then this PR. Unique: pick the OSM
+ways for EBC and run the first real build (#9).
+
+---
+
 ## 2026-11-20 · M1 #6 Route data schema + validator (owner: Unique)
 
 **Done (for Unique to review)**

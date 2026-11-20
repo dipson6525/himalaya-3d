@@ -9,6 +9,7 @@ that ran on a team member's laptop with access only to this project folder.
 | --- | --- | --- | --- |
 | 2026-11-19 | M0 | Checked the environment; created the GitHub repo, labels, milestones and the issue backlog; scaffolded the React + Vite + TypeScript + CesiumJS app, the Python data-prep project, CI and deploy workflows; wrote the first versions of requirements, architecture, decisions and viva notes; set up Claude Code skills and subagents. | Each member reads the files they own (see CLAUDE.md), runs the checks locally, and completes the "prove you understand it" exercises in their viva notes by hand. |
 | 2026-11-20 | M0 / M1 | Turned off AI co-author lines (ADR-016). For issue #6, drafted the route schema doc, the Python validator and its tests, the TypeScript types and Unique's notes. A code-reviewer subagent found 2 crashes and 1 missing rule, which were fixed; a viva-examiner subagent found wrong statements in the notes, which were corrected. | Unique reviews and merges PR #38, runs the tests, and does exercises 5–7 in `docs/viva/unique-ghimire.md` by hand. |
+| 2026-11-21 | M2 | For issue #8, drafted the Overpass cache module, the route builder, the spec template, their tests (synthetic data, no network), ADR-019 and the pipeline part of Unique's notes. Made no real Overpass request. | Unique reviews and merges the PR, makes the first real query in #9, and does exercises 8–10 by hand. |
 
 ## Rules we gave the AI (from CLAUDE.md and our setup prompt)
 
