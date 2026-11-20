@@ -14,5 +14,5 @@ resolved. Newest at the top.
 | Q7 | Nepali UI strings are machine-drafted — need review by a native speaker (see `docs/i18n-review.md`). | M6 | Team | Open |
 | Q8 | Safety/disclaimer wording reviewed by the team (and ideally a supervisor). | M5 | Team | Open |
 | Q9 | KU report format/template for the final report outline. | M8 | Team | Open |
-| Q10 | This laptop's global git `user.name` contains stray text (a quote and a newline). Fix with `git config --global user.name "Your Name"`. This repo has a correct local override. | Now | Laptop owner | Open |
+| Q10 | This laptop's global git `user.name` contains stray text, and the global `user.email` has a typo in the domain (`student.kuedu.np` instead of `student.ku.edu.np`). Fix both with `git config --global ...`. This repo has correct local overrides. | Now | Laptop owner | Open |
 | Q11 | Add the `project` scope to gh if you want a GitHub Project board: `gh auth refresh -s project`. | Optional | Repo owner | Open |
