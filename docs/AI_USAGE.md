@@ -8,6 +8,7 @@ that ran on a team member's laptop with access only to this project folder.
 | Date | Milestone | What Claude Code did | How the team checks it |
 | --- | --- | --- | --- |
 | 2026-11-19 | M0 | Checked the environment; created the GitHub repo, labels, milestones and the issue backlog; scaffolded the React + Vite + TypeScript + CesiumJS app, the Python data-prep project, CI and deploy workflows; wrote the first versions of requirements, architecture, decisions and viva notes; set up Claude Code skills and subagents. | Each member reads the files they own (see CLAUDE.md), runs the checks locally, and completes the "prove you understand it" exercises in their viva notes by hand. |
+| 2026-11-20 | M1 | For issue #7, drafted `docs/ui-design.md` (component tree, shared state, wireframes), ADR-018 and the UI-design part of Dipson's notes; generated the text wireframes with a script so the boxes line up. A viva-examiner subagent checked the notes. | Dipson reviews and merges the PR, checks the design against the real app as features land, and does the new exercises in `docs/viva/dipson-gurung.md` by hand. |
 
 ## Rules we gave the AI (from CLAUDE.md and our setup prompt)
 
