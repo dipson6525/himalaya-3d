@@ -21,43 +21,55 @@ and tablet widths. Wireframes are low-fidelity: boxes and labels only, no real d
    - "Weather data by Open-Meteo.com" while weather is shown, and again directly under any
      weather values in the side panel.
 
-   We add our credits with `viewer.creditDisplay.addStaticCredit(...)`, so Cesium lays them out
-   with its own and they never collide with our panels.
+   We add each credit as `new Credit(html, true)` with `viewer.creditDisplay.addStaticCredit(...)`.
+   The `true` (`showOnScreen`) matters: without it Cesium only lists the credit inside its
+   "Data attribution" pop-up, not on the map. Cesium lays the credits out with its own, so they
+   never collide with our panels.
 4. **Breakpoint at 900 px** (already in `app/src/ui/styles.css`). Wider: globe and a 320 px side
    panel side by side. 900 px or narrower (tablets, including 768 px portrait): everything stacks
    in one column.
 5. **Every visible string comes from `t(key, language)`** (`app/src/i18n/`). Nepali text is often
-   longer than English, so labels may wrap; no fixed-width buttons.
-6. **Usable without a mouse.** Tabs use `role="tablist"`, every control is reachable with Tab, and
-   focus is visible. On touch screens, controls are at least 44 × 44 px.
+   longer than English, so labels may wrap; no fixed-width buttons. When the language changes,
+   `document.documentElement.lang` changes too (`en` or `ne`), so screen readers pronounce the
+   text in the right language (#27).
+6. **Usable without a mouse.** The side-panel tabs follow the WAI-ARIA "tabs" pattern: the row has
+   `role="tablist"`, each tab `role="tab"` with `aria-selected` and `aria-controls`, each panel
+   `role="tabpanel"`. Only the selected tab is a Tab-key stop; the arrow keys move between tabs.
+   Every other control is reachable with Tab and focus is visible. On touch screens, controls
+   are at least 44 × 44 px.
+7. **Nepali text needs a Devanagari font.** Most systems ship one (for example Nirmala UI on
+   Windows). To look the same on every laptop, #27 can bundle Noto Sans Devanagari (SIL Open Font
+   License) instead of relying on what is installed.
 
 ## Component tree
 
 Colours show the owner: green = Unique, blue = Sparsh, purple = Dipson. `#n` is the GitHub issue
-that builds the component. Components marked "(exists)" are already in the code.
+that builds the component. **(exists)** = already a React component in the code. **(element
+today)** = today a plain HTML element inside `App.tsx`; it becomes its own component when it gets
+logic of its own. Everything else is still to be built.
 
 ```mermaid
-flowchart TD
-  App["App (exists)<br/>ui/App.tsx<br/>holds AppState"]:::dipson
+flowchart LR
+  App["App (exists)<br/>ui/App.tsx<br/>will hold AppState #16"]:::dipson
 
-  App --> Header["Header"]:::dipson
-  Header --> Title["Title + tagline (exists)"]:::dipson
+  App --> Header["Header (element today)"]:::dipson
+  Header --> Title["Title + tagline (element today)"]:::dipson
   Header --> Lang["LanguageToggle #27"]:::dipson
 
-  App --> GlobeArea["GlobeArea"]:::dipson
-  GlobeArea --> Globe["CesiumGlobe #14 (exists)<br/>creates the Viewer,<br/>provides ViewerContext"]:::sparsh
+  App --> GlobeArea["GlobeArea (element today)"]:::dipson
+  GlobeArea --> Globe["CesiumGlobe (exists)<br/>creates the Viewer;<br/>ViewerContext added in #15"]:::sparsh
+  Globe --> Notice["No-token notice<br/>(exists, inside CesiumGlobe)"]:::sparsh
   Globe --> RouteLayer["RouteLayer #15<br/>trail clamped to ground"]:::sparsh
   Globe --> Stops["StopMarkers + StopPopup #15"]:::sparsh
   Globe --> Fly["FlythroughCamera #19<br/>(no UI of its own)"]:::sparsh
   Globe --> HoverMarker["ProfileHoverMarker #22"]:::dipson
   Globe --> Quakes["EarthquakeLayer #25"]:::dipson
-  Globe --> Credits["Credits<br/>static credits in Cesium's credit area"]:::dipson
-  GlobeArea --> Notice["NoTokenNotice (exists)"]:::sparsh
+  Globe --> Credits["Credits #15 #25 #26<br/>in Cesium's credit area"]:::dipson
   GlobeArea --> Fps["FpsOverlay #29 (toggle)"]:::sparsh
 
   App --> Profile["ProfileStrip #21<br/>ElevationProfile (Chart.js)<br/>+ ascent / descent / highest"]:::dipson
 
-  App --> Panel["SidePanel<br/>tabs: Trek · Plan · Layers"]:::dipson
+  App --> Panel["SidePanel (element today)<br/>tabs: Trek · Plan · Layers"]:::dipson
   Panel --> TrekTab["TrekTab"]:::dipson
   TrekTab --> Selector["TrekSelector #16"]:::dipson
   TrekTab --> StopList["StopList #16"]:::dipson
@@ -71,7 +83,7 @@ flowchart TD
   LayersTab --> Weather["WeatherPanel #26<br/>+ Open-Meteo credit"]:::dipson
   LayersTab --> Sun["SunSlider #28"]:::dipson
 
-  App --> Footer["DisclaimerFooter (exists)<br/>always visible"]:::dipson
+  App --> Footer["Disclaimer footer (element today)<br/>always visible"]:::dipson
 
   classDef unique fill:#d9f2d9,stroke:#2e7d32,color:#000
   classDef sparsh fill:#d6e6fa,stroke:#1d76db,color:#000
@@ -82,7 +94,7 @@ flowchart TD
 | --- | --- | --- | --- | --- |
 | App, Header, GlobeArea, SidePanel, tabs, DisclaimerFooter | `app/src/ui/` | Dipson | all, NFR6 | #7, #16 |
 | LanguageToggle | `app/src/ui/` | Dipson | FR9 | #27 |
-| CesiumGlobe, NoTokenNotice | `app/src/engine/` | Sparsh | FR1 | #14 |
+| CesiumGlobe (with the no-token notice), ViewerContext | `app/src/engine/` | Sparsh | FR1 | #14, #15 |
 | RouteLayer, StopMarkers, StopPopup | `app/src/features/routes/` | Sparsh | FR2, FR3 | #15 |
 | TrekSelector, StopList | `app/src/features/routes/` | Dipson | FR2 | #16 |
 | FlythroughCamera, FlythroughControls | `app/src/engine/`, `app/src/features/routes/` | Sparsh | FR4 | #19, #20 |
@@ -97,42 +109,56 @@ flowchart TD
 Most components only need their own local state (`useState`). A few values are needed by
 components in different branches of the tree, for example the selected trek is set in the side
 panel but read by the globe, the profile strip and the itinerary. Those values live in **one
-place, `App`**, and are handed down through a React context called `AppState`. Components that
-draw on the globe also need the Cesium Viewer, which `CesiumGlobe` provides through a second
-context, `ViewerContext`.
+place, `App`**, and are handed down through React contexts.
 
-| Shared value | Who changes it | Who reads it |
-| --- | --- | --- |
-| `language` (`'en'` or `'ne'`) | LanguageToggle | every component, through `t()` |
-| `selectedRouteId` | TrekSelector | RouteLayer, StopMarkers, StopList, ElevationProfile, ItineraryEditor, WeatherPanel |
-| `selectedStopId` | StopMarkers (click), StopList (click) | StopPopup, camera fly-to |
-| `profileHighlightM` (distance along the trail, metres) | ElevationProfile (hover), RouteLayer (click on trail) | ProfileHoverMarker, ElevationProfile |
-| `flythroughCommand` (play / pause / speed / jump to day) | FlythroughControls | FlythroughCamera |
-| `itinerary` (list of days) | ItineraryEditor | AcclimatizationWarnings |
-| `layers` (earthquakes on/off, weather on/off) | LayerToggles | EarthquakeLayer, WeatherPanel, Credits |
-| `sunTime` (date and time) | SunSlider | CesiumGlobe (scene lighting / clock) |
+**The rule that shapes everything below:** every component that reads a context re-renders when
+that context's value changes. So we put values that change rarely together, and keep values that
+change many times a second in a small context of their own (or out of React entirely).
+
+| Shared value | Lives in | Who changes it | Who reads it |
+| --- | --- | --- | --- |
+| `language` (`'en'` or `'ne'`) | `AppState` | LanguageToggle | every component, through `t()` |
+| `selectedRouteId` | `AppState` | TrekSelector | RouteLayer, StopMarkers, StopList, ElevationProfile, ItineraryEditor, WeatherPanel |
+| `selectedStopId` | `AppState` | StopMarkers (click), StopList (click) | StopPopup, camera fly-to |
+| `flythroughStatus` (playing?, speed) | `AppState` | the flythrough controller (see below) | FlythroughControls (to show the right buttons) |
+| `itinerary` (list of days) | `AppState` | ItineraryEditor | AcclimatizationWarnings |
+| `layers` (earthquakes on/off, weather on/off) | `AppState` | LayerToggles | EarthquakeLayer, WeatherPanel, Credits |
+| `sunTime` (date and time) | `AppState` | SunSlider | CesiumGlobe (scene lighting / clock) |
+| `profileHighlightM` (distance along the trail, metres) | `ProfileHoverContext` (its own) | ElevationProfile (hover), RouteLayer (click on trail) | ProfileHoverMarker, ElevationProfile |
+
+`CesiumGlobe` also shares the Cesium Viewer, and later the flythrough controller, through
+`ViewerContext` (added in #15). Neither changes after start-up, so sharing them re-renders nothing.
 
 ```mermaid
 flowchart LR
   Selector["TrekSelector"] -->|selectedRouteId| State[("AppState<br/>in App")]
-  Chart["ElevationProfile"] -->|profileHighlightM| State
-  Controls["FlythroughControls"] -->|flythroughCommand| State
   Editor["ItineraryEditor"] -->|itinerary| State
   State --> Route["RouteLayer / StopMarkers"]
-  State --> Marker["ProfileHoverMarker"]
-  State --> Cam["FlythroughCamera"]
   State --> Warn["AcclimatizationWarnings"]
+  Chart["ElevationProfile"] -->|profileHighlightM| Hover[("ProfileHoverContext")]
+  Hover --> Marker["ProfileHoverMarker"]
+  Controls["FlythroughControls"] -->|"play() pause()<br/>setSpeed() jumpToDay()"| Ctrl["flythrough controller<br/>(via ViewerContext)"]
+  Ctrl --> Cam["FlythroughCamera"]
+  Ctrl -->|flythroughStatus| State
 ```
 
-Two rules keep this simple and fast:
+Four rules keep this simple and fast:
 
 - **Store inputs, compute results.** Acclimatization warnings are not stored. They are
   recalculated from `itinerary` on every render by the pure function in `lib/acclim/`, so they
   can never be out of date.
 - **Per-frame values stay out of React.** During a flythrough the camera position changes about
-  60 times a second. Putting it in React state would re-render the whole page every frame. The
-  camera position lives inside `FlythroughCamera` (Cesium's own render loop); React only sends it
-  commands such as play, pause, speed and jump to day N.
+  60 times a second. Putting it in React state would re-render the page every frame. The camera
+  position lives inside `FlythroughCamera` (Cesium's own render loop).
+- **Fast-changing values get their own small context.** Moving the mouse over the chart changes
+  `profileHighlightM` many times a second. In `AppState` it would re-render every component that
+  reads `AppState`; in `ProfileHoverContext` it re-renders only the chart and the marker. The
+  chart also updates it at most once per animation frame (`requestAnimationFrame`).
+- **Commands are method calls, not state.** "Play" or "jump to day 3" is an event, not a value.
+  Stored as state, the receiver would have to work out whether it had already handled it (two
+  clicks on "jump to day 3" store the same value twice). So FlythroughControls call methods on
+  the flythrough controller, which runs each command once and reports `flythroughStatus` back so
+  the buttons show the right state.
 
 ## Wireframes
 
@@ -268,8 +294,31 @@ chart and map easy to follow. It can be hidden to give the globe more room.
 ## How this maps to the current code
 
 `app/src/ui/App.tsx` already has the header, the globe area, a side panel and the disclaimer
-footer, and `styles.css` already has the 900 px breakpoint and the 320 px panel. Still to add:
-the `AppState` context (when the first shared value arrives in #16), the tabs, the profile strip
-row in the grid (#21), and the static credits (#15 adds OSM, #25 and #26 add USGS and Open-Meteo).
+footer as plain elements, and `styles.css` already has the 900 px breakpoint, the 320 px panel and
+the 40% height limit for the stacked panel. Still to add:
+
+- the `AppState` context, when the first shared value arrives (#16);
+- `ViewerContext` in `CesiumGlobe` (#15) and the flythrough controller (#19);
+- the tabs (#16) and the profile strip row in the grid (#21);
+- the static credits (#15 adds OSM; #25 and #26 add USGS and Open-Meteo).
+
+### Gaps in the current code this design fixes later
+
+| Gap today | Why it matters | Fix in |
+| --- | --- | --- |
+| The footer has `role="note"` | It replaces the footer's built-in "contentinfo" landmark, which screen-reader users use to jump to the page footer. A note role is also not read out automatically. | #16: keep a plain `<footer>`. Update the smoke test, which finds the footer with `getByRole('note')`. |
+| `index.html` always says `lang="en"` | Nepali text would be read with English pronunciation. | #27: set `document.documentElement.lang` with the language toggle |
+| `Noto Sans Devanagari` is in the CSS font list but never loaded | It is used only if already installed; otherwise the system's Devanagari font is used. | #27: bundle it, or remove it from the list and rely on system fonts |
+
+## How we will check this design
+
+- **Tablet width (NFR4):** a Playwright test at 768 × 1024 checks that the globe, panel and
+  disclaimer are all visible and the panel sits below the globe (#32).
+- **Keyboard:** a Playwright test tabs through the header, tabs and panel controls and checks
+  that focus reaches each one (#32).
+- **Credits and disclaimer (NFR5, NFR6):** the e2e tests check the credit text and the
+  disclaimer for each tab (#32).
+- **Real users:** the M7 questionnaire (#31) asks whether people could find the trek, plan a
+  trip and see the warnings. The team runs it; results are never invented.
 
 Design decisions: see ADR-018 in `docs/decisions.md`.
