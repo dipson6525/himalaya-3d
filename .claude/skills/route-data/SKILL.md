@@ -24,17 +24,17 @@ Use this whenever you add a route, add/edit a stop, or touch `data-prep/` or `da
    position is the Point geometry `[lon, lat]`. Validate with `python -m prep.schema`.
 2. **Activate the venv:** `cd data-prep` then `.venv\Scripts\activate` (Windows) or
    `source .venv/bin/activate`.
-3. **Fetch trail ways (only if not cached):**
-   - Build the Overpass QL query with a tight bounding box around the trek.
-   - Send it with `requests.post("https://overpass-api.de/api/interpreter", data={"data": q},
-     headers={"User-Agent": "himalaya-3d-student-project (KU COMP 206)"}, timeout=90)`.
-   - Save the raw JSON to `data-prep/cache/<route>-<what>.json` and commit it.
-   - If the response is 429/504, wait and retry later — do not loop.
-4. **Clean & simplify** with shapely: merge ways into one LineString, project to metres
-   (pyproj, UTM zone 45N = EPSG:32645 covers most of Nepal), `simplify(tolerance_m)`,
-   project back to WGS84. Record the tolerance in `docs/decisions.md`.
-5. **Write GeoJSON** to `data/routes/<route-id>.geojson`: one LineString feature for the
-   trail plus one Point feature per overnight stop. Coordinates are `[lon, lat]` (GeoJSON order!).
+3. **Write the route spec:** copy `data-prep/route-specs/_template.toml` to `<route-id>.toml`;
+   give the OSM route relation id OR the list of way ids, and the stops (with lon/lat and a
+   cited `altitude_source`). See `data-prep/route-specs/README.md`.
+4. **Build:** `python -m prep.build_route <route-id>`. It asks Overpass at most once (cached in
+   `data-prep/cache/<route-id>-ways.json`, which you commit), merges the ways, simplifies in
+   metres (ADR-019, default 5 m), checks the schema and writes `data/routes/<route-id>.geojson`.
+   - "N separate pieces" means a way is missing or a side path is included: fix the way list,
+     never draw the gap by hand.
+   - HTTP 429/504 from Overpass: wait and run again by hand later; never loop.
+   - Use `--offline` to make sure only the cache is used.
+5. **Do not hand-edit** `data/routes/*.geojson`; change the spec and rebuild.
 6. **Cite sources:** add every publication used to the Sources table in
    `data/routes/route-sources.md` and reference its Source ID from each stop.
 7. **Cross-check altitudes** against Cesium World Terrain (issue #13). Differences > 50 m go
