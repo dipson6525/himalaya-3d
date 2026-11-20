@@ -117,3 +117,16 @@ image depended on whether the local machine had a token.
 **Decision:** e2e tests save screenshots only when `UPDATE_SCREENSHOTS=1` is set
 (bash: `UPDATE_SCREENSHOTS=1 npm run e2e`; PowerShell: `$env:UPDATE_SCREENSHOTS=1; npm run e2e`). The PR author regenerates them deliberately and states in the PR
 whether a token was used.
+
+## ADR-016 · No AI co-author lines in commits; disclose AI use in docs instead (Team, 2026-11-20)
+
+**Context:** Claude Code added `Co-Authored-By: Claude …` to each commit, which made GitHub list
+Claude as a repository contributor. The team wants only its members listed.
+**Decision:** `.claude/settings.json` sets `"attribution": {"commit": "", "pr": ""}`, so Claude Code
+adds no co-author trailer or "Generated with" line for anyone on the team. This repo's git email was
+also corrected (the laptop's global setting has a typo, `kuedu.np` instead of `ku.edu.np`), so new
+commits are credited to the owner's GitHub account.
+**Alternative rejected:** rewriting `main` to strip the trailers from the first 8 M0 commits. It
+needs a force-push, which our ground rules forbid, so the team chose to keep that history as it is.
+**Consequences:** Claude stays in GitHub's contributor list because of those 8 M0 commits; no later
+commit adds to it. AI assistance is disclosed in `docs/AI_USAGE.md` (and in the report).

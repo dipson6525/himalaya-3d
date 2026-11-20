@@ -25,6 +25,12 @@ that ran on a team member's laptop with access only to this project folder.
 - It did not decide medical guidance; the acclimatization rules follow the cited Wilderness
   Medical Society guidelines and are labelled "not medical advice".
 
+## Commit metadata
+
+From 2026-11-20, commits and pull requests carry no AI co-author lines (ADR-016). The first 8 M0
+commits (2026-11-19) still do, so GitHub lists Claude as a contributor for those. This file is
+where AI assistance is disclosed.
+
 ## How we verify AI-written work
 
 1. CI runs lint, typecheck, unit tests, a production build, Playwright e2e, ruff and pytest on

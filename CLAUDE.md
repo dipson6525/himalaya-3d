@@ -27,6 +27,8 @@ Static web app: 3D Nepal (CesiumJS) + trek planning. No custom server. Deployed 
 ## Conventions
 - TypeScript strict; ESLint + Prettier; Python ruff.
 - Conventional Commits with area scope: feat(flythrough): …, fix(i18n): …, docs(viva): …
+- No AI co-author trailers or "Generated with" lines in commits/PRs (team decision, ADR-016;
+  set in .claude/settings.json "attribution"). AI help is disclosed in docs/AI_USAGE.md instead.
 - Branch per issue: <member>/<topic>. PR must link issue, include test evidence + screenshot.
 - All UI strings in app/src/i18n/en.json and ne.json (keys must match; test enforces it).
 - Route GeoJSON schema: docs/data-schema.md. Every altitude cites a source in data/routes/route-sources.md.
