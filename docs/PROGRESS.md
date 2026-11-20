@@ -5,6 +5,33 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-20 · M1 #6 Route data schema + validator (owner: Unique)
+
+**Done (for Unique to review)**
+
+- `docs/data-schema.md`: one FeatureCollection per route; one `route` LineString + one `stop`
+  Point per overnight stop; positions only in geometry; nights derived from `day`; every altitude
+  cites a Source ID; `TODO` values rejected (ADR-017).
+- `data-prep/prep/schema.py`: plain-Python validator returning every error; `python -m prep.schema`
+  checks all files in `data/routes/`.
+- `data-prep/tests/test_schema.py`: one test per rule with synthetic data, plus a test that runs on
+  every real route file (skipped while `data/routes/` has none).
+- `app/src/features/routes/types.ts`: matching TypeScript types for M3.
+- Viva notes (Unique): validator walkthrough, worked examples, questions 7–14, exercises 5–7.
+
+**Test evidence (local, Windows)**
+
+```
+data-prep> ruff check .       → All checks passed!
+data-prep> pytest -q          → 46 passed, 1 skipped (the real-files test: no route files yet)
+data-prep> python -m prep.schema → No .geojson files in data/routes yet.
+app> npm run lint / typecheck / test → clean · clean · 3 passed
+```
+
+**TEAM TODO:** Unique reviews and merges the PR; confirm the 4th route (Q6) before #12.
+
+---
+
 ## 2026-11-20 · M0 follow-up: contributors list
 
 **Done**

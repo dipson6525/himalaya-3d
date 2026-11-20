@@ -130,3 +130,21 @@ commits are credited to the owner's GitHub account.
 needs a force-push, which our ground rules forbid, so the team chose to keep that history as it is.
 **Consequences:** Claude stays in GitHub's contributor list because of those 8 M0 commits; no later
 commit adds to it. AI assistance is disclosed in `docs/AI_USAGE.md` (and in the report).
+
+## ADR-017 · Route file schema (Unique, 2026-11-20)
+
+**Context:** The app, the data pipeline and the acclimatization checker all read route files, so
+their format must be fixed early and checked automatically (issue #6).
+**Decision:** One GeoJSON FeatureCollection per route (`data/routes/<route-id>.geojson`) with one
+`route` LineString feature and one `stop` Point feature per overnight stop, in walking order
+(`docs/data-schema.md`). Positions live only in geometry (`[lon, lat]`), not duplicated as
+properties. There is no rest-day field: nights at a stop = next stop's `day` − this stop's `day`.
+Every altitude names a Source ID from `route-sources.md`. Values containing `TODO` and unknown
+property names are rejected. The validator (`data-prep/prep/schema.py`) is plain Python and runs
+in CI through pytest; a matching TypeScript type lives in `app/src/features/routes/types.ts`.
+**Alternatives:** a JSON Schema file plus the `jsonschema` library (cannot express "days increase"
+or "Source ID listed in a Markdown table", and is harder to explain); one big file for all routes
+(every edit would touch everyone's data).
+**Consequences:** A route line must be one continuous LineString; if OSM has gaps, the pipeline
+(#8) has to deal with them and record how. Schema changes need the doc, validator, tests and
+TypeScript types updated together.
