@@ -22,7 +22,8 @@ flowchart TD
   FC --> SN["… one per overnight stop"]
 ```
 
-Every feature has `properties.kind` set to `"route"` or `"stop"`, so the app can tell them apart.
+Every feature has `properties.kind` set to `"route"` or `"stop"`, so the app can tell them apart
+(in TypeScript with `isRouteFeature` and `isStopFeature` from `app/src/features/routes/types.ts`).
 
 ## Route feature
 
@@ -43,10 +44,10 @@ Every feature has `properties.kind` set to `"route"` or `"stop"`, so the app can
 | Property | Type | Rule |
 | --- | --- | --- |
 | `kind` | text | Always `"stop"` |
-| `id` | text | Lowercase words joined by hyphens (`namche-bazaar`); unique within the file |
+| `id` | text | Lowercase words joined by hyphens (`namche-bazaar`); unique among the stops in the file |
 | `name_en` | text | English name |
 | `name_ne` | text | Nepali name, must contain Devanagari script |
-| `day` | whole number | The trek day you **arrive and sleep** here, starting at 1; larger than the previous stop's day |
+| `day` | whole number | The trek day you **arrive and sleep** here. The first stop is day 1; each later stop's day is larger than the one before |
 | `altitude_m` | number | Altitude in metres, between 0 and 8,849 |
 | `altitude_source` | text | A Source ID from `data/routes/route-sources.md` |
 | `description_en` | text | One or two sentences in English |
@@ -91,6 +92,9 @@ The acclimatization checker (M5) builds its list of sleeping altitudes from this
   which catches English text pasted into the wrong field.
 
 Unknown property names are errors too, so a typo such as `altitude` instead of `altitude_m` is caught.
+
+Save route files as **UTF-8**. (Windows PowerShell 5 writes UTF-16 by default; the validator reports
+that instead of crashing.)
 
 ## Synthetic example (not real data)
 
@@ -162,7 +166,8 @@ pytest                            # the same checks, plus the validator's own te
 
 ## Matching TypeScript types
 
-The front end describes the same shape in `app/src/features/routes/types.ts`. If you change this
+The front end describes the same shape in `app/src/features/routes/types.ts`, together with the type
+guards `isRouteFeature` and `isStopFeature`. If you change this
 schema, change the validator, its tests and those types in the same pull request.
 
 ## Design choices

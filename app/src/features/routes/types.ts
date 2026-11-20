@@ -1,5 +1,5 @@
 /**
- * types.ts — TypeScript description of a route file in data/routes/*.geojson.
+ * types.ts — TypeScript types (and two type guards) for a route file in data/routes/*.geojson.
  * Owner: Unique Ghimire (schema), used by Sparsh Gorkhali (drawing, M3). Related FR: FR2, FR3.
  *
  * This mirrors docs/data-schema.md, which the Python validator (data-prep/prep/schema.py)
@@ -59,4 +59,18 @@ export interface StopFeature {
 export interface RouteFile {
   type: 'FeatureCollection';
   features: Array<RouteFeature | StopFeature>;
+}
+
+/**
+ * Type guards. Because `kind` sits inside `properties`, TypeScript cannot work out on its own that
+ * `kind === 'route'` means the geometry is a LineString. These functions tell it: after
+ * `if (isRouteFeature(f))`, TypeScript treats `f` as a RouteFeature.
+ */
+export function isRouteFeature(feature: RouteFeature | StopFeature): feature is RouteFeature {
+  return feature.properties.kind === 'route';
+}
+
+/** True for a stop feature; after this check TypeScript treats the feature as a StopFeature. */
+export function isStopFeature(feature: RouteFeature | StopFeature): feature is StopFeature {
+  return feature.properties.kind === 'stop';
 }
