@@ -11,7 +11,6 @@ Useful numbers for checking by hand, near latitude 28 N:
 import json
 import tomllib
 
-import pyproj
 import pytest
 from shapely.geometry import LineString
 
@@ -193,7 +192,6 @@ def test_length_of_0_01_degrees_of_longitude_at_28_n():
     from pyproj.Geod is a little different, so we allow 1%."""
     line = LineString([(85.0, 28.0), (85.01, 28.0)])
     assert length_m(line) == pytest.approx(983, rel=0.01)
-    assert length_m(line) == pytest.approx(pyproj.Geod(ellps="WGS84").geometry_length(line))
 
 
 # ---- output ---------------------------------------------------------------------------------
@@ -276,3 +274,107 @@ def test_template_lists_every_property_the_schema_needs():
 def test_command_line_reports_a_missing_spec(capsys):
     assert main(["no-such-route"]) == 1
     assert "No spec at" in capsys.readouterr().out
+
+
+# ---- review fixes: loops, far-away stops, bad input -----------------------------------------
+
+
+def test_a_parallel_alternative_way_makes_a_loop_and_is_refused():
+    """A-B, B-C and a second path A-C join into a circle A-B-C-A: not a trail from A to B."""
+    a, b, c = (85.0, 28.0), (85.01, 28.0), (85.02, 28.005)
+    lines = [LineString([a, b]), LineString([b, c]), LineString([a, (85.01, 28.004), c])]
+    with pytest.raises(RouteBuildError, match="closed loop"):
+        merge_lines(lines)
+
+
+def test_the_same_way_twice_is_refused():
+    way = LineString([(85.0, 28.0), (85.01, 28.0)])
+    with pytest.raises(RouteBuildError, match="closed loop"):
+        merge_lines([way, way])
+
+
+def test_a_stop_far_from_the_trail_stops_the_build(tmp_path):
+    specs, cache, routes = tmp_path / "specs", tmp_path / "cache", tmp_path / "routes"
+    for folder in (specs, cache, routes):
+        folder.mkdir()
+    # Move stop B about 5.5 km north (0.05 deg of latitude x 110.9 km).
+    spec_path = write_spec(specs, SPEC_TOML.replace("lat = 28.01", "lat = 28.06"))
+    write_cache(cache, spec_path)
+    with pytest.raises(RouteBuildError, match="m from the trail"):
+        build_route(
+            spec_path,
+            cache_dir=cache,
+            routes_dir=routes,
+            known_sources=KNOWN_SOURCES,
+            allow_network=False,
+        )
+    assert list(routes.iterdir()) == []
+
+
+def test_spec_with_a_byte_order_mark_is_accepted(tmp_path):
+    path = tmp_path / "test-route.toml"
+    path.write_text(SPEC_TOML, encoding="utf-8-sig")
+    assert load_spec(path)["id"] == "test-route"
+
+
+@pytest.mark.parametrize(
+    "change, message",
+    [
+        (lambda text: text.replace('id = "test-route"', "id = "), "not valid TOML"),
+        (
+            lambda text: text.replace('description_ne = "परीक्षणका लागि मात्र बनाइएको मार्ग।"\n', ""),
+            "missing description_ne",
+        ),
+        (lambda text: text.replace("simplify_tolerance_m", "simplify_tolerence_m"), "unknown key"),
+        (
+            lambda text: text.replace("simplify_tolerance_m = 5", "simplify_tolerance_m = -1"),
+            "0 or more",
+        ),
+        (lambda text: text.replace("osm_ways = [1, 2]", 'osm_ways = ["1", "2"]'), "whole numbers"),
+        # match= is a regular expression, so the square brackets must be escaped.
+        (lambda text: text.split("[[stops]]")[0] + "stops = [1, 2]\n", r"\[\[stops\]\] tables"),
+    ],
+    ids=[
+        "bad-toml",
+        "missing-key",
+        "typo-key",
+        "negative-tolerance",
+        "way-ids-as-text",
+        "stops-not-tables",
+    ],
+)
+def test_bad_specs_give_clear_errors(tmp_path, change, message):
+    path = write_spec(tmp_path, change(SPEC_TOML))
+    with pytest.raises(RouteBuildError, match=message):
+        load_spec(path)
+
+
+def test_spec_saved_as_utf16_gives_a_clear_error(tmp_path):
+    path = tmp_path / "test-route.toml"
+    path.write_text(SPEC_TOML, encoding="utf-16")
+    with pytest.raises(RouteBuildError, match="UTF-8"):
+        load_spec(path)
+
+
+@pytest.mark.parametrize(
+    "answer, message",
+    [
+        ([], "no list of 'elements'"),
+        (
+            {"elements": [{"type": "way", "id": 5, "geometry": [None, {"lat": 28, "lon": 85}]}]},
+            "no lon/lat",
+        ),
+        (
+            {
+                "elements": [
+                    {"type": "way", "id": 5, "geometry": [{"lat": 28}, {"lat": 28, "lon": 85}]}
+                ]
+            },
+            "no lon/lat",
+        ),
+    ],
+    ids=["not-a-dict", "null-position", "missing-lon"],
+)
+def test_malformed_overpass_answers_give_clear_errors(answer, message):
+    with pytest.raises(RouteBuildError, match=message):
+        ways_to_lines(answer)

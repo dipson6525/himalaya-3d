@@ -7,6 +7,7 @@ test uses its own temporary cache folder. The Overpass answers here are tiny, ma
 import json
 
 import pytest
+import requests
 
 from prep import overpass
 from prep.overpass import OverpassError, build_query, cache_path, fetch_cached
@@ -83,7 +84,9 @@ def test_cache_from_a_different_query_is_refused(tmp_path):
 
 def test_missing_cache_with_network_off_is_an_error(tmp_path, not_in_ci):
     with pytest.raises(OverpassError, match="network use was turned off"):
-        fetch_cached("route-ways", QUERY, cache_dir=tmp_path, allow_network=False)
+        fetch_cached(
+            "route-ways", QUERY, cache_dir=tmp_path, allow_network=False, post=refuse_network
+        )
 
 
 def test_network_is_never_used_in_ci(tmp_path, monkeypatch):
@@ -128,5 +131,51 @@ def test_http_error_raises_and_caches_nothing(tmp_path, not_in_ci, status):
 def test_overpass_remark_raises_and_caches_nothing(tmp_path, not_in_ci):
     fake = FakePost(FakeResponse(200, {"elements": [], "remark": "runtime error: timeout"}))
     with pytest.raises(OverpassError, match="runtime error"):
+        fetch_cached("route-ways", QUERY, cache_dir=tmp_path, post=fake)
+    assert not cache_path("route-ways", tmp_path).exists()
+
+
+# ---- damaged caches and bad answers: clear errors, never a crash ----------------------------
+
+
+def test_cache_with_merge_conflict_markers_is_reported(tmp_path):
+    cache_path("route-ways", tmp_path).write_text("<<<<<<< HEAD\n{}\n=======\n", encoding="utf-8")
+    with pytest.raises(OverpassError, match="damaged"):
+        fetch_cached("route-ways", QUERY, cache_dir=tmp_path, post=refuse_network)
+
+
+def test_cache_without_a_saved_answer_is_reported(tmp_path):
+    cache_path("route-ways", tmp_path).write_text(json.dumps({"query": QUERY}), encoding="utf-8")
+    with pytest.raises(OverpassError, match="no saved Overpass answer"):
+        fetch_cached("route-ways", QUERY, cache_dir=tmp_path, post=refuse_network)
+
+
+def test_no_connection_becomes_a_clear_error(tmp_path, not_in_ci):
+    def broken_post(*args, **kwargs):
+        raise requests.ConnectionError("no route to host")
+
+    with pytest.raises(OverpassError, match="could not reach Overpass"):
+        fetch_cached("route-ways", QUERY, cache_dir=tmp_path, post=broken_post)
+    assert not cache_path("route-ways", tmp_path).exists()
+
+
+class NotJsonResponse(FakeResponse):
+    """A 200 answer whose body is an HTML page, not JSON."""
+
+    def json(self):
+        raise ValueError("Expecting value")
+
+
+def test_answer_that_is_not_json_is_reported(tmp_path, not_in_ci):
+    with pytest.raises(OverpassError, match="not JSON"):
+        fetch_cached(
+            "route-ways", QUERY, cache_dir=tmp_path, post=FakePost(NotJsonResponse(200, {}))
+        )
+    assert not cache_path("route-ways", tmp_path).exists()
+
+
+def test_answer_without_elements_is_reported(tmp_path, not_in_ci):
+    fake = FakePost(FakeResponse(200, {"version": 0.6}))
+    with pytest.raises(OverpassError, match="no list of 'elements'"):
         fetch_cached("route-ways", QUERY, cache_dir=tmp_path, post=fake)
     assert not cache_path("route-ways", tmp_path).exists()

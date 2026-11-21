@@ -147,8 +147,9 @@ route-specs/<id>.toml ──load_spec──► spec (names, OSM ids, stops)
         │
         ▼
 answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
-       ──merge_lines───► ONE LineString   (gap or branch → stop with an error)
+       ──merge_lines───► ONE LineString   (gap, branch or closed loop → stop with an error)
        ──orient────────► starts at the end nearer the first stop
+       ──check_stops_near_trail──► every stop within 500 m of the trail, or stop
        ──simplify_line─► Douglas–Peucker with the tolerance in metres (UTM)
        ──build_feature_collection + schema.validate_route──► errors? stop, write nothing
        ──to_geojson_text──► data/routes/<id>.geojson (one feature per line)
@@ -163,9 +164,19 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
   with `--offline`; otherwise sends **one** POST with the User-Agent and a 90 s timeout. A non-200
   answer or an Overpass `remark` (for example a timeout) raises an error and saves nothing; there
   is no retry loop. The saved file holds the query, the UTC date and the ODbL licence line.
-- `merge_lines` — `shapely.ops.linemerge` joins lines that share an end point. One piece → done;
-  several pieces → error listing where each piece starts and ends.
+- `load_spec` — reads the TOML (also accepts a UTF-8 byte-order mark) and checks the spec itself:
+  required keys, no unknown keys (a typo such as `simplify_tolerence_m` is an error, not silently
+  ignored), whole-number OSM ids, tolerance ≥ 0, stops as `[[stops]]` tables with numeric lon/lat.
+  The route properties (names, days, altitudes, sources) are left to the schema validator, so the
+  two tools never disagree about those rules.
+- `merge_lines` — `shapely.ops.linemerge` joins lines that share an end point. One open piece →
+  done; several pieces → error listing where each piece starts and ends; one **closed** piece
+  (first point = last point) → error, because a parallel alternative path (A–B–C plus A–C) or a
+  way listed twice makes the "trail" go round in a circle.
 - `orient` — compares the distance from the first stop to each end and reverses if needed.
+- `check_stops_near_trail` — measures each stop's distance to the trail in metres (UTM) and stops
+  the build if one is more than 500 m away, which catches a mistyped lon/lat that the schema
+  (which only checks "inside Nepal") would let through.
 - `utm_epsg_for` + `simplify_line` — project to metres, simplify, project back.
 - `build_route` — runs everything and returns a report (ways merged, points before/after,
   length before/after, tolerance) that `main` prints.
@@ -189,6 +200,10 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
 - Out-and-back treks: the line is the trail one way. Stops on the way back need their own ids
   (for example `namche-bazaar-return`).
 - The 5 m tolerance is reasoned, not yet checked on the globe (TODO in ADR-019, M3).
+- The 500 m stop limit is a team choice, not a measured value; confirm it with the first real
+  routes (TODO in ADR-019).
+- The cache compares the query text exactly: changing `QUERY_TIMEOUT_S` or the order of
+  `osm_ways` makes every cache file stale (on purpose re-fetch needed).
 
 ## Key concepts from first principles
 
@@ -291,6 +306,14 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
     parameter; tests pass a fake that records the call, and `monkeypatch` removes or sets `CI`.
 26. **What does `orient` do and why?** — OSM ways have no walking direction; after merging the
     line may run backwards, so it is flipped to start at the end nearer the first stop.
+27. **Why refuse a closed loop?** — A closed line has no start and end, so `orient` cannot put the
+    first stop at the start, and the trail would be roughly twice as long (both the main path and
+    the alternative). It means the way list includes an alternative path or a duplicate way.
+28. **How do you catch a stop whose lon/lat has a typo?** — The schema only checks the position
+    is inside Nepal; `check_stops_near_trail` checks it is within 500 m of the trail line.
+29. **What happens if the spec has `simplify_tolerence_m = 500` (misspelt)?** — `load_spec`
+    rejects unknown keys, so the build stops with "unknown key(s) simplify_tolerence_m (typo?)"
+    instead of silently using the 5 m default.
 
 ## AI use in this part
 
@@ -305,7 +328,12 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
   and be able to explain the "Code details" and "Limits" sections without the notes.
 - **Issue #8 (2026-11-21):** Claude Code drafted `prep/overpass.py`, `prep/build_route.py`, the
   spec template, their tests, ADR-019 and the pipeline sections of these notes. A code-reviewer
-  subagent reviewed the code before the PR (see the PR for what it found and what was fixed).
+  subagent found real problems before the PR, all fixed with tests:
+  - closed loops (parallel or duplicate ways) were accepted;
+  - stops far from the trail were not caught;
+  - one test could have reached the real network if a guard broke;
+  - many bad inputs crashed with a traceback instead of a clear message.
+
   No real Overpass query was made; the first one is yours, in #9.
 
 ## Prove you understand it (do these by hand, no AI)
@@ -335,4 +363,5 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
   questions 7–18, exercises 5–7, AI-use section; corrected Douglas–Peucker and Q4/Q7/Q13 after
   the viva-examiner check.
 - 2026-11-21 — M2 #8: pipeline walkthrough, UTM/metre-tolerance/length worked examples,
-  questions 19–26, exercises 8–10 (exercise 1 changed: the test it asked for now exists).
+  questions 19–29, exercises 8–10 (exercise 1 changed: the test it asked for now exists);
+  closed-loop, stop-distance and input checks added after the code review.
