@@ -1,6 +1,6 @@
 /**
  * types.test.ts — checks the route type guards on a tiny synthetic route.
- * Owner: Unique Ghimire. Related FR: FR2, FR3.
+ * Owner: Unique Ghimire. Related FR: FR2.
  *
  * The names, positions and altitudes below are made up for testing, not real trek data.
  */

@@ -130,6 +130,8 @@ commits are credited to the owner's GitHub account.
 needs a force-push, which our ground rules forbid, so the team chose to keep that history as it is.
 **Consequences:** Claude stays in GitHub's contributor list because of those 8 M0 commits; no later
 commit adds to it. AI assistance is disclosed in `docs/AI_USAGE.md` (and in the report).
+**Update 2026-11-21:** superseded in part by ADR-020 — the team later chose to replace `main` with
+a cleaned history, so Claude no longer appears in the contributor list. The disclosure stays.
 
 ## ADR-017 · Route file schema (Unique, 2026-11-20)
 
@@ -215,3 +217,47 @@ and north-south); GDAL/ogr2ogr (not installed, ADR-006); bridging small gaps aut
 (invents geometry).
 **Consequences:** Building a new route needs the right OSM way list; a missing way shows up as a
 clear error. Re-running is offline and deterministic once the cache file is committed.
+
+## ADR-020 · Replace `main` with a history without AI co-author lines (Team, 2026-11-21)
+
+**Context:** The repo owner wanted Claude removed from GitHub's contributor list (it came from
+`Co-Authored-By` lines in the first M0 commits, ADR-016). A force-push is denied in the project's
+Claude Code settings, and our §0 rule said never to rewrite `main`; the owner chose to override
+that rule once.
+**Decision:** On 2026-11-21:
+1. A copy of `main` was rewritten locally with `git filter-branch`: the Claude co-author lines
+   were removed from commit messages and the laptop's mistyped e-mail domain (`kuedu.np`) was
+   corrected to `ku.edu.np`. Checked: the file tree is identical to the old `main`, the same 11
+   commits, no Claude lines left.
+2. It was pushed as a new branch (no force-push), the old `main` was renamed to
+   `archive/old-main-with-claude` with GitHub's branch-rename API, the new branch was renamed to
+   `main` and made the default branch.
+3. The three open PRs had the old history underneath, so merging them would have brought the old
+   commits back. They were replayed onto the new `main` (`git rebase --onto`; files identical) and
+   re-opened as #41, #42 and #43. GitHub closed the originals (#38–#40) when their branches were
+   renamed to `archive/old-*`; each has a comment pointing to its replacement.
+**Consequences:** GitHub's contributors API lists only team members (the web page can lag). Anyone
+who cloned before 2026-11-21 must re-clone (nobody had). Closed PR pages #36–#40 still show the
+old commits; GitHub keeps PR history. The `archive/old-*` branches keep everything reversible
+(Q15). AI assistance remains disclosed in `docs/AI_USAGE.md`.
+
+## ADR-021 · Who merges pull requests while the repo owner is away (Team, 2026-11-21)
+
+**Context:** CLAUDE.md says feature PRs are merged by the owning student. The repo owner asked
+for the project to keep moving while they are away; unmerged PRs would block dependent issues.
+**Decision:** Until the team says otherwise, a PR is merged by the repo owner's account once CI is
+green and the automated code review has no open correctness findings. One PR per issue still;
+owners review the merged code afterwards, raise issues for anything they disagree with, and do
+their own viva exercises by hand.
+**Consequences:** Faster progress; less review before merge, so owners must read their merged
+modules before the viva. Unique and Sparsh become GitHub contributors through their own commits
+(for example the viva exercises and fixes), not through these merges.
+
+## ADR-022 · FR numbers follow the proposal (Team, 2026-11-21)
+
+**Context:** The first `docs/requirements.md` numbered the FRs differently from Table 4.1 of the
+submitted proposal (it split routes and stops), which would confuse the final report.
+**Decision:** Use the proposal's FR1–FR9 everywhere: old FR3 → FR2, FR4 → FR3, FR5 → FR4,
+FR6 → FR5 (checker) and FR6 (editable itinerary). Code headers, docs, viva notes and the GitHub
+issues were updated. NFR11 (ease of use for people new to 3D software) was added from the proposal.
+**Consequences:** One numbering in code, issues, docs and report.

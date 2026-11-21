@@ -1,4 +1,4 @@
-"""Tests for building a route file from a spec (owner: Unique Ghimire). Related FR: FR2, FR3.
+"""Tests for building a route file from a spec (owner: Unique Ghimire). Related FR: FR2.
 
 All positions, names and altitudes here are synthetic test values, not real trek data. No test
 uses the network: the Overpass answer is written into a temporary cache folder first.

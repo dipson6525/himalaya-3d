@@ -95,11 +95,11 @@ flowchart LR
 | App, Header, GlobeArea, SidePanel, tabs, DisclaimerFooter | `app/src/ui/` | Dipson | all, NFR6 | #7, #16 |
 | LanguageToggle | `app/src/ui/` | Dipson | FR9 | #27 |
 | CesiumGlobe (with the no-token notice), ViewerContext | `app/src/engine/` | Sparsh | FR1 | #14, #15 |
-| RouteLayer, StopMarkers, StopPopup | `app/src/features/routes/` | Sparsh | FR2, FR3 | #15 |
+| RouteLayer, StopMarkers, StopPopup | `app/src/features/routes/` | Sparsh | FR2 | #15 |
 | TrekSelector, StopList | `app/src/features/routes/` | Dipson | FR2 | #16 |
-| FlythroughCamera, FlythroughControls | `app/src/engine/`, `app/src/features/routes/` | Sparsh | FR4 | #19, #20 |
-| ElevationProfile, ProfileHoverMarker | `app/src/features/elevation/` | Dipson | FR5 | #21, #22 |
-| ItineraryEditor, AcclimatizationWarnings | `app/src/features/acclimatization/`, `features/itinerary/` | Unique | FR6 | #23, #24 |
+| FlythroughCamera, FlythroughControls | `app/src/engine/`, `app/src/features/routes/` | Sparsh | FR3 | #19, #20 |
+| ElevationProfile, ProfileHoverMarker | `app/src/features/elevation/` | Dipson | FR4 | #21, #22 |
+| ItineraryEditor, AcclimatizationWarnings | `app/src/features/acclimatization/`, `features/itinerary/` | Unique | FR5, FR6 | #23, #24 |
 | EarthquakeLayer, WeatherPanel, LayerToggles, Credits | `app/src/features/layers/` | Dipson | FR7, NFR5 | #25, #26 |
 | SunSlider | `app/src/features/layers/` | Dipson | FR8 | #28 |
 | FpsOverlay | `app/src/engine/` | Sparsh | NFR1 | #29 |

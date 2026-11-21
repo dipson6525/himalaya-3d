@@ -21,15 +21,15 @@ environment, shared folder paths, a citation template, and smoke tests.
 | `data-prep/prep/paths.py` | Folder constants every script uses | FR2 |
 | `data-prep/tests/test_environment.py` | Proves the libraries import and folders exist | — |
 | `data-prep/cache/` | Committed Overpass responses (ODbL) | FR2 |
-| `data/routes/route-sources.md` | Every altitude's source + disagreements table | FR3, NFR9 |
-| `docs/data-schema.md` | The rules every route file must follow | FR2, FR3 |
-| `data-prep/prep/schema.py` | Validator: checks a route file and lists every problem | FR2, FR3 |
-| `data-prep/tests/test_schema.py` | One test per rule, plus a check of every real route file | FR2, FR3 |
-| `app/src/features/routes/types.ts` | The same shape as TypeScript types + type guards, for the front end | FR2, FR3 |
-| `app/src/features/routes/types.test.ts` | Vitest check of the type guards | FR2, FR3 |
+| `data/routes/route-sources.md` | Every altitude's source + disagreements table | FR2, NFR9 |
+| `docs/data-schema.md` | The rules every route file must follow | FR2 |
+| `data-prep/prep/schema.py` | Validator: checks a route file and lists every problem | FR2 |
+| `data-prep/tests/test_schema.py` | One test per rule, plus a check of every real route file | FR2 |
+| `app/src/features/routes/types.ts` | The same shape as TypeScript types + type guards, for the front end | FR2 |
+| `app/src/features/routes/types.test.ts` | Vitest check of the type guards | FR2 |
 | `data-prep/prep/overpass.py` | One cached, polite Overpass request per route; never in CI | FR2 |
-| `data-prep/prep/build_route.py` | Spec → ways → one trail → simplified → checked → GeoJSON | FR2, FR3 |
-| `data-prep/route-specs/` | One hand-written TOML spec per trek, plus `_template.toml` | FR2, FR3 |
+| `data-prep/prep/build_route.py` | Spec → ways → one trail → simplified → checked → GeoJSON | FR2 |
+| `data-prep/route-specs/` | One hand-written TOML spec per trek, plus `_template.toml` | FR2 |
 | `data-prep/tests/test_overpass.py`, `test_build_route.py` | Pipeline tests with synthetic data, no network | FR2 |
 
 Coming next: the four routes (#9–#12), altitude cross-check (#13), acclimatization rules (#23),

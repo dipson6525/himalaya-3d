@@ -1,4 +1,4 @@
-"""Tests for the route GeoJSON validator (owner: Unique Ghimire). Related FR: FR2, FR3.
+"""Tests for the route GeoJSON validator (owner: Unique Ghimire). Related FR: FR2.
 
 Most tests start from one valid, made-up route (make_route) and break one thing, then check
 that the validator reports exactly that problem. The last test runs the validator on every real

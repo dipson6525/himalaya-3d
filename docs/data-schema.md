@@ -1,6 +1,6 @@
 # Route data schema
 
-Owner: Unique Ghimire · Issue #6 · Related FR: FR2 (routes), FR3 (stops)
+Owner: Unique Ghimire · Issue #6 · Related FR: FR2 (routes and stops)
 
 Every trek is one file in `data/routes/`, named `<route-id>.geojson`, for example
 `data/routes/everest-base-camp.geojson`. The web app loads these files as they are, so they must

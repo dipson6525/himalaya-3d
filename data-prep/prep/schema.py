@@ -1,4 +1,4 @@
-"""Route GeoJSON validator (owner: Unique Ghimire). Related FR: FR2 (routes), FR3 (stops).
+"""Route GeoJSON validator (owner: Unique Ghimire). Related FR: FR2 (routes and stops).
 
 Every file in data/routes/ must follow the rules written in docs/data-schema.md. This module
 checks those rules and returns a list of plain-English error messages; an empty list means the
