@@ -5,6 +5,28 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · M3 #14 Nepal-centred viewer (owner: Sparsh)
+
+**Done**
+
+- Camera starts over Nepal (450 km up at 84.1 °E, 22.8 °N, facing north, 35° down; aim point
+  about 28.6 °N). The numbers live in `engine/nepalView.ts` with a unit-tested `lookAtPoint`;
+  the Cesium calls live in `engine/camera.ts`. The home button flies back to this view.
+- `requestRenderMode` on (ADR-023). The OpenStreetMap credit is shown on the map next to
+  Cesium's (`engine/credits.ts`), and the e2e test checks for it.
+- Screenshot from the real build with the token: `docs/screenshots/m3-nepal-start-view.png`
+  (the README now shows it). A first attempt aimed too far north (mostly Tibet), so the camera
+  was moved 0.5° south.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest
+11 passed (3 files); `npm run e2e` 1 passed, both with the token and with
+`VITE_CESIUM_ION_TOKEN=` (the offline imagery CI uses).
+
+**TEAM TODO:** Sparsh: read the engine files and do exercises 2, 5 and 6. Set
+`CESIUM_ION_TOKEN` (Q2) so the live site shows terrain too.
+
+---
+
 ## 2026-11-21 · Repository housekeeping and proposal alignment
 
 **Done**

@@ -7,7 +7,7 @@ Computer Science and Engineering, Kathmandu University · Coordinator: Suman Shr
 
 **Live site:** https://dipson6525.github.io/himalaya-3d/ (deployed from `main` by GitHub Actions)
 
-![App shell (M0)](docs/screenshots/m0-app-shell.png)
+![Start view over Nepal (M3, issue #14)](docs/screenshots/m3-nepal-start-view.png)
 
 > ⚠️ Safety information in this app is general guidance only, **not medical advice**.
 

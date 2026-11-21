@@ -1,5 +1,5 @@
 /**
- * smoke.spec.ts — M0 smoke test: the production build loads in a real browser.
+ * smoke.spec.ts — smoke test: the production build loads in a real browser (M0, extended in #14).
  * Owner: Sparsh Gorkhali (testing lead). Related: FR1, NFR5 (credits visible), NFR6 (disclaimer).
  *
  * Runs against `vite preview`, i.e. the real build under the /himalaya-3d/ base path,
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 
 const SCREENSHOT = fileURLToPath(
-  new URL('../../docs/screenshots/m0-app-shell.png', import.meta.url),
+  new URL('../../docs/screenshots/m3-nepal-start-view.png', import.meta.url),
 );
 
 test('app shell loads with globe, credits and medical disclaimer', async ({ page }) => {
@@ -29,6 +29,10 @@ test('app shell loads with globe, credits and medical disclaimer', async ({ page
   // Cesium adds a <canvas> once WebGL has started, and a credits area that must stay visible.
   await expect(page.locator('.cesium-widget canvas')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.cesium-widget-credits')).toBeVisible();
+  // Our OpenStreetMap credit must be ON the map (showOnScreen), not only in the pop-up (NFR5).
+  await expect(page.locator('.cesium-credit-textContainer')).toContainText(
+    'OpenStreetMap contributors',
+  );
 
   await page.waitForLoadState('networkidle');
   expect(notFound, 'no file may 404 (wrong base path?)').toEqual([]);

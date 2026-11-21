@@ -8,8 +8,10 @@
  * 2. The ion token is read from import.meta.env.VITE_CESIUM_ION_TOKEN. It ends up inside
  *    the built JavaScript (that is unavoidable for a static site); the production token is
  *    protected by an "Allowed URLs" restriction set on cesium.com, not by hiding it.
+ * 3. Nepal becomes Cesium's default view, before any Viewer is created (camera.ts).
  */
 import { Ion } from 'cesium';
+import { setNepalAsDefaultView } from './camera';
 
 declare global {
   interface Window {
@@ -29,3 +31,5 @@ export const hasCesiumToken: boolean = cesiumToken.trim().length > 0;
 if (hasCesiumToken) {
   Ion.defaultAccessToken = cesiumToken.trim();
 }
+
+setNepalAsDefaultView();
