@@ -5,6 +5,36 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · M2 #8 Data-prep pipeline (owner: Unique)
+
+**Done (for Unique to review)**
+
+- `prep/overpass.py`: one cached Overpass request per route; User-Agent, `[timeout:60]` + 90 s
+  request timeout, no retry loop, refuses to run when `CI` is set; the cache file keeps the query,
+  UTC fetch date and ODbL licence line, and a cache made by a different query is refused.
+- `prep/build_route.py`: TOML route spec → ways → one merged trail (stops on gaps, never bridges
+  them) → oriented to the first stop → Douglas–Peucker in metres (UTM zone of the line, default
+  5 m) → stops added → schema check → `data/routes/<id>.geojson`, one feature per line.
+- `route-specs/_template.toml` + README; ADR-019; route-data skill, data-prep README and
+  route-sources.md updated; glossary (EPSG, linemerge, TOML, UTM); Unique's viva notes.
+- Code review before the PR: closed loops (parallel or duplicate ways) and stops more than 500 m
+  from the trail now stop the build; bad specs, damaged caches, network errors and malformed
+  Overpass answers give clear errors instead of crashes; one test could have reached the network
+  and now cannot.
+- No real Overpass query yet: choosing the EBC ways is #9.
+
+**Test evidence (local, Windows)**
+
+```
+data-prep> ruff check .   → All checks passed!
+data-prep> pytest -q -W error::DeprecationWarning → 111 passed, 1 skipped
+```
+
+**TEAM TODO:** review #38 first (this branch builds on it), then this PR. Unique: pick the OSM
+ways for EBC and run the first real build (#9).
+
+---
+
 ## 2026-11-20 · M1 #7 Component tree and wireframes (owner: Dipson)
 
 **Done (for Dipson to review)**
@@ -22,9 +52,38 @@ each of the 4 wireframes has the same width. Both Mermaid diagrams pass Mermaid'
 corrections are in the PR (hover context, flythrough commands as method calls, accurate
 accessibility notes, "element today" labels).
 
-**TEAM TODO:** Dipson reviews and merges the PR. When #38 and this PR are both merged, the
-appended sections in `docs/decisions.md`, `docs/PROGRESS.md`, `docs/glossary.md` and
-`docs/AI_USAGE.md` need a simple merge (keep both sides).
+**TEAM TODO:** Dipson reviews the merged design (merged as #42 while the repo owner was
+away, ADR-021) and checks both Mermaid diagrams on GitHub.
+
+---
+
+## 2026-11-20 · M1 #6 Route data schema + validator (owner: Unique)
+
+**Done (for Unique to review)**
+
+- `docs/data-schema.md`: one FeatureCollection per route; one `route` LineString + one `stop`
+  Point per overnight stop; positions only in geometry; nights derived from `day`; every altitude
+  cites a Source ID; `TODO` values rejected (ADR-017).
+- `data-prep/prep/schema.py`: plain-Python validator returning every error; `python -m prep.schema`
+  checks all files in `data/routes/`.
+- `data-prep/tests/test_schema.py`: one test per rule with synthetic data, plus a test that runs on
+  every real route file (skipped while `data/routes/` has none).
+- `app/src/features/routes/types.ts`: matching TypeScript types for M3.
+- Viva notes (Unique): validator walkthrough, code details, limits, worked examples, questions
+  7–18, exercises 5–7, AI-use section. Checked by the code-reviewer and viva-examiner subagents;
+  their findings are fixed (see PR #38).
+
+**Test evidence (local, Windows)**
+
+```
+data-prep> ruff check .       → All checks passed!
+data-prep> pytest -q          → 59 passed, 1 skipped (the real-files test: no route files yet)
+data-prep> python -m prep.schema → No .geojson files in data/routes yet.
+app> npm run lint / typecheck / test → clean · clean · 5 passed (incl. route type guards)
+```
+
+**TEAM TODO:** Unique reviews and merges PR #38; confirm the 4th route (Q6) before #12; decide on
+branch protection for `main` (Q12).
 
 ---
 

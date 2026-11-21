@@ -18,7 +18,9 @@ Written 2026-11-19 before any feature code. Approve or edit this before M1/M2 wo
 ### #6 Route data schema + validator (Unique) — branch `unique/data-schema`
 1. `docs/data-schema.md`: one GeoJSON `FeatureCollection` per route.
    - A GeoJSON FeatureCollection has no standard `properties` field, so route metadata lives in
-     a `route` Feature (LineString) with `id`, `name_en`, `name_ne`, `region`, `source_ids`.
+     a `route` Feature (LineString). As built (ADR-017): `id`, `name_en`, `name_ne`,
+     `description_en`, `description_ne`, `geometry_source`; no `region` field yet (add it via a
+     schema change if the trek selector #16 needs it).
    - One `stop` Feature (Point) per overnight stop: `name_en`, `name_ne`, `altitude_m`,
      `altitude_source` (Source ID), `day`, `description_en`, `description_ne`.
      `lat`/`lon` come from the Point geometry `[lon, lat]` (not duplicated, to avoid mismatches).
