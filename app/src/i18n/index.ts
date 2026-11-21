@@ -22,7 +22,19 @@ const dictionaries: Record<Language, Record<MessageKey, string>> = { en, ne };
 /**
  * Look up the text for `key` in the chosen language (English by default).
  * Falls back to English, then to the key itself, so a missing string is visible but never crashes.
+ *
+ * Placeholders: a message may contain {name}-style holes, filled from `values`, e.g.
+ * t('routes.showing', 'en', { name: 'Test Route', count: 2 }). Each language puts the holes
+ * where its grammar needs them, which gluing fixed pieces together could not do. A hole with no
+ * value is left as it is, so the mistake is visible.
  */
-export function t(key: MessageKey, language: Language = 'en'): string {
-  return dictionaries[language][key] ?? dictionaries.en[key] ?? key;
+export function t(
+  key: MessageKey,
+  language: Language = 'en',
+  values: Record<string, string | number> = {},
+): string {
+  const text = dictionaries[language][key] ?? dictionaries.en[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (hole, name: string) =>
+    name in values ? String(values[name]) : hole,
+  );
 }

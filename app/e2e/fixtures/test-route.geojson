@@ -1,0 +1,57 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "route",
+        "id": "test-route",
+        "name_en": "Test Route",
+        "name_ne": "परीक्षण मार्ग",
+        "description_en": "A made-up route used only in tests.",
+        "description_ne": "परीक्षणका लागि मात्र बनाइएको मार्ग।",
+        "geometry_source": "OSM"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [85.0, 28.0],
+          [85.05, 28.02],
+          [85.1, 28.05],
+          [85.15, 28.07],
+          [85.2, 28.1]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "stop",
+        "id": "stop-a",
+        "name_en": "Test Stop A",
+        "name_ne": "परीक्षण बिसौनी ए",
+        "day": 1,
+        "altitude_m": 1000,
+        "altitude_source": "TEST",
+        "description_en": "First synthetic stop.",
+        "description_ne": "पहिलो परीक्षण बिसौनी।"
+      },
+      "geometry": { "type": "Point", "coordinates": [85.0, 28.0] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "stop",
+        "id": "stop-b",
+        "name_en": "Test Stop B",
+        "name_ne": "परीक्षण बिसौनी बी",
+        "day": 2,
+        "altitude_m": 1500,
+        "altitude_source": "TEST",
+        "description_en": "Second synthetic stop.",
+        "description_ne": "दोस्रो परीक्षण बिसौनी।"
+      },
+      "geometry": { "type": "Point", "coordinates": [85.2, 28.1] }
+    }
+  ]
+}

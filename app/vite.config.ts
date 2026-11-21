@@ -12,6 +12,10 @@
  *    workers 404 and the globe never appears.
  * 3. `envDir` — our .env.local lives in the project root (one folder above app/), so we
  *    point Vite there. Only variables whose names start with VITE_ reach the browser.
+ * 4. Route data — data/routes/index.json and *.geojson are copied to "<base>data/routes/" and
+ *    downloaded by the app at run time (features/routes/loadRoutes.ts), not bundled into the
+ *    JavaScript. A route is only downloaded when the user picks it, and e2e tests can serve a
+ *    synthetic route in their place.
  */
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -35,11 +39,19 @@ export default defineConfig(({ mode }) => ({
     viteStaticCopy({
       // Copies e.g. node_modules/cesium/Build/Cesium/Workers/** to dist/cesium/Workers/**.
       // stripBase: 4 removes the "node_modules/cesium/Build/Cesium" prefix from each path.
-      targets: CESIUM_FOLDERS.map((folder) => ({
-        src: `${CESIUM_BUILD}/${folder}/**/*`,
-        dest: 'cesium', // must match CESIUM_BASE_URL in src/engine/cesiumSetup.ts
-        rename: { stripBase: 4 },
-      })),
+      targets: [
+        ...CESIUM_FOLDERS.map((folder) => ({
+          src: `${CESIUM_BUILD}/${folder}/**/*`,
+          dest: 'cesium', // must match CESIUM_BASE_URL in src/engine/cesiumSetup.ts
+          rename: { stripBase: 4 },
+        })),
+        {
+          // ../data/routes/index.json and every route file → dist/data/routes/ (flat copy).
+          src: '../data/routes/*.{json,geojson}',
+          dest: 'data/routes', // must match ROUTES_PATH in src/features/routes/loadRoutes.ts
+          rename: { stripBase: true },
+        },
+      ],
     }),
   ],
   build: {
