@@ -150,6 +150,33 @@ feature needs it.
 (#8) has to deal with them and record how. Schema changes need the doc, validator, tests and
 TypeScript types updated together.
 
+## ADR-018 · UI structure and shared state (Dipson, 2026-11-20)
+
+**Context:** From M3 on, several features built by different people must work on one screen and
+share values such as the selected trek (issue #7, `docs/ui-design.md`).
+**Decision:**
+- Layout: globe as main content; a 320 px side panel with three tabs (Trek, Plan, Layers); an
+  elevation-profile strip under the globe; the medical disclaimer as a footer row of the page grid;
+  stacked in one column at 900 px or narrower.
+- Credits: added to Cesium's own credit area as `new Credit(html, true)` (shown on screen, not
+  only in the "Data attribution" pop-up) with `viewer.creditDisplay.addStaticCredit`, plus the
+  Open-Meteo credit next to weather values in the panel.
+- Shared state: values that change rarely and are used by several branches of the component tree
+  live in `App` and are passed down through one React context (`AppState`, 7 values). The chart
+  hover position changes many times a second, so it has its own small `ProfileHoverContext`. The
+  Cesium Viewer and the flythrough controller are shared through `ViewerContext`.
+- Derived values (acclimatization warnings) are recalculated, not stored. Per-frame flythrough
+  positions stay inside the engine. Flythrough commands are method calls on the controller, not
+  state.
+- Accessibility: WAI-ARIA tabs pattern for the side panel; `<html lang>` follows the language.
+**Alternatives:** a state library such as Redux or Zustand (more to learn and explain for about
+eight shared values); passing props down through every level ("prop drilling"), which gets messy
+once the globe and the side panel both need the same value; the profile as a side-panel tab (too
+narrow for a multi-day chart); one context for everything (every hover would re-render every
+component that reads it).
+**Consequences:** One place to look for rarely-changing shared values. Every component that reads
+a context re-renders when it changes, so anything that changes often must stay out of `AppState`.
+
 ## ADR-019 · Route data pipeline (Unique, 2026-11-21)
 
 **Context:** Issue #8. Route lines must come from OpenStreetMap, be reproducible, respect the
