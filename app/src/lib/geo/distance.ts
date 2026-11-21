@@ -9,8 +9,13 @@
 /** A position as [longitude, latitude] in degrees (GeoJSON order). */
 export type LonLat = readonly [lon: number, lat: number];
 
-/** Mean radius of the Earth in metres. Treating the Earth as a sphere of this radius is accurate
- * to about 0.5% for distances, which is plenty for a flythrough and a profile. */
+/**
+ * Mean radius of the Earth in metres. The real Earth is slightly flattened (an ellipsoid), so
+ * sphere distances are a little off: at most about 0.56% (north–south near the equator), about
+ * 0.34% north–south at 28 °N and less east–west — figures computed against the WGS84 ellipsoid
+ * during code review (TODO(team): confirm with a published source for the report). Plenty for a
+ * flythrough and a profile. These are horizontal (map) distances; a steep trail is longer walked.
+ */
 export const EARTH_RADIUS_M = 6_371_000;
 
 /** Degrees → radians: multiply by π / 180. */
@@ -30,8 +35,10 @@ function toRadians(degrees: number): number {
  *
  * Worked example: two points one degree apart on the equator.
  *   Δφ = 0, Δλ = 1° = 0.017453 rad, cos φ1 = cos φ2 = 1
- *   a = sin²(0.0087266) = 0.0000761524
- *   d = 2 × 6,371,000 × asin(0.0087266) = 111,194.9 m   (= 2πR / 360, as expected)
+ *   a = sin²(Δλ / 2) = sin²(0.0087266) = 0.0000761524
+ *   √a = 0.0087265 (= sin 0.5°), so asin(√a) = 0.5° = π / 360 = 0.0087266 rad
+ *   d = 2 × 6,371,000 × 0.0087266 ≈ 111,194.9 m   (= 2πR / 360, as expected)
+ * (Careful on a calculator: asin of the rounded 0.0087266 gives 111,195.7 m — keep more digits.)
  */
 export function haversineM(a: LonLat, b: LonLat): number {
   const phi1 = toRadians(a[1]);
@@ -40,7 +47,8 @@ export function haversineM(a: LonLat, b: LonLat): number {
   const deltaLambda = toRadians(b[0] - a[0]);
   const h =
     Math.sin(deltaPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) ** 2;
-  // Math.min guards against h being a hair above 1 from rounding, which would make asin NaN.
+  // Safety net: if rounding ever pushed h a hair above 1, asin would return NaN. (In testing it
+  // never went above 1, but the guard costs nothing.)
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(Math.min(1, h)));
 }
 
@@ -79,6 +87,7 @@ export interface RoutePosition {
 export function locateDistance(cumulative: readonly number[], s: number): RoutePosition {
   const last = cumulative.length - 1;
   if (last < 1) throw new RangeError('a route needs at least 2 points');
+  if (!Number.isFinite(s)) throw new RangeError(`distance must be a finite number, got ${s}`);
   if (s <= 0) return { segment: 0, t: 0 };
   if (s >= cumulative[last]) return { segment: last - 1, t: 1 };
 

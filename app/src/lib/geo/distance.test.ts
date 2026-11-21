@@ -33,16 +33,18 @@ describe('haversineM', () => {
     expect(haversineM([85, 27], [85, 28])).toBeCloseTo(ONE_DEGREE_M, 1);
   });
 
-  it('one degree of longitude at 60 °N is half as long (cos 60° = 0.5), roughly', () => {
-    // Not exactly half: the great circle cuts the corner slightly compared with the parallel.
-    expect(haversineM([0, 60], [1, 60])).toBeCloseTo(ONE_DEGREE_M * 0.5, -2);
+  it('one degree of longitude at 60 °N is about half as long (cos 60° = 0.5)', () => {
+    // Exactly: 2R · asin(cos 60° · sin 0.5°) = 55,596.93 m, 0.53 m less than half of 111,194.93 m
+    // (the great circle cuts the corner of the parallel). This test also catches a missing
+    // degrees → radians conversion.
+    expect(haversineM([0, 60], [1, 60])).toBeCloseTo(55_596.93, 1);
   });
 
   it('equator to pole is a quarter of the way round: πR / 2', () => {
     expect(haversineM([0, 0], [0, 90])).toBeCloseTo((Math.PI * EARTH_RADIUS_M) / 2, 0);
   });
 
-  it('to the opposite side of the Earth is πR, without NaN from rounding', () => {
+  it('to the opposite side of the Earth is πR (and not NaN)', () => {
     const d = haversineM([0, 0], [180, 0]);
     expect(Number.isNaN(d)).toBe(false);
     expect(d).toBeCloseTo(Math.PI * EARTH_RADIUS_M, 0);
@@ -74,6 +76,18 @@ describe('cumulativeDistancesM', () => {
   });
 });
 
+describe('pointOnSegment', () => {
+  it('interpolates longitude AND latitude', () => {
+    const diagonal: LonLat[] = [
+      [85, 27],
+      [86, 28],
+    ];
+    const point = pointOnSegment(diagonal, { segment: 0, t: 0.25 });
+    expect(point[0]).toBeCloseTo(85.25, 9);
+    expect(point[1]).toBeCloseTo(27.25, 9);
+  });
+});
+
 describe('locateDistance (for constant ground speed)', () => {
   // Uneven spacing on purpose: segments of 1°, 3° and 1° along the equator.
   const points: LonLat[] = [
@@ -97,6 +111,16 @@ describe('locateDistance (for constant ground speed)', () => {
       (degree) => pointOnSegment(points, locateDistance(cumulative, degree * ONE_DEGREE_M))[0],
     );
     steps.forEach((lon, degree) => expect(lon).toBeCloseTo(degree, 6));
+  });
+
+  it('half-way along the LAST segment is segment 2, t = 0.5', () => {
+    const position = locateDistance(cumulative, 4.5 * ONE_DEGREE_M);
+    expect(position.segment).toBe(2);
+    expect(position.t).toBeCloseTo(0.5, 9);
+  });
+
+  it('refuses a distance that is not a number, instead of returning t = NaN', () => {
+    expect(() => locateDistance(cumulative, Number.NaN)).toThrow(RangeError);
   });
 
   it('exactly on a point returns the start of the next segment', () => {
