@@ -298,9 +298,9 @@ footer as plain elements, and `styles.css` already has the 900 px breakpoint, th
 the 40% height limit for the stacked panel. Still to add:
 
 - the `AppState` context, when the first shared value arrives (#16);
-- `ViewerContext` in `CesiumGlobe` (#15) and the flythrough controller (#19);
+- the flythrough controller (#19) (`ViewerContext` now exists, #15);
 - the tabs (#16) and the profile strip row in the grid (#21);
-- the static credits (#15 adds OSM; #25 and #26 add USGS and Open-Meteo).
+- the USGS and Open-Meteo credits (#25, #26); the OSM credit is on since #14.
 
 ### Gaps in the current code this design fixes later
 

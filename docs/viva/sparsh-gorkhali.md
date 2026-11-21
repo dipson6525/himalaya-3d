@@ -22,6 +22,11 @@ in M7 you lead performance measurement and testing.
 | `app/src/engine/nepalView.test.ts` | Checks the start view looks at Nepal (worked numbers in comments) | FR1 |
 | `app/src/engine/camera.ts` | Nepal as Cesium's default view; `viewNepal`; home button flies back to Nepal | FR1 |
 | `app/src/engine/credits.ts` | OpenStreetMap credit shown on the map next to Cesium's | NFR5 |
+| `app/src/engine/ViewerContext.ts` | Shares the Viewer with layers inside the globe (`useViewer`) | FR2 |
+| `app/src/features/routes/RouteLayer.tsx` | Draws the trail and stop markers; removes them in cleanup | FR2 |
+| `app/src/features/routes/routeEntities.ts` (+ test) | What to draw, as plain data; escaped popup HTML | FR2 |
+| `app/src/features/routes/loadRoutes.ts`, `useRoutes.ts` | Download the index and the shown route | FR2 |
+| `app/e2e/routes.spec.ts`, `app/e2e/fixtures/` | e2e with a SYNTHETIC route served by `page.route` | FR2 |
 | `app/src/lib/geo/distance.ts` | Haversine, cumulative distance, distance → (segment, t) lookup | FR3, FR4 |
 | `app/src/lib/geo/distance.test.ts` | Hand-checkable tests (1° = 111,194.9 m, πR/2, πR, uneven spacing) | FR3, FR4 |
 | `app/playwright.config.ts` | Runs e2e tests against the production build under `/himalaya-3d/` | all |
@@ -183,6 +188,37 @@ Distances before the start or after the end are clamped. Example from the tests:
   hundreds of metres, not for continents.
 - Heights are ignored: these are map distances, not the distance walked up and down hills.
 
+### Drawing a route (`features/routes/`, `engine/ViewerContext.ts`, issue #15)
+
+**Data flow.**
+
+```
+App ──useRoutes──► fetch <base>data/routes/index.json ──► fetch <first id>.geojson ──► RouteFile
+App renders <CesiumGlobe> <RouteLayer route=... language=... /> </CesiumGlobe>
+CesiumGlobe ──ViewerContext──► RouteLayer ──useViewer()──► the Viewer (null until it exists)
+RouteLayer effect: routeDrawing(route, language)        plain data, unit-tested
+                   → new CustomDataSource: trail polyline + one point/label per stop
+                   → viewer.dataSources.add(...) → viewer.flyTo(dataSource)
+           cleanup: viewer.dataSources.remove(dataSource, true)   (every entity gone at once)
+```
+
+**Key ideas.**
+- *Load at run time, not bundle:* the index is small; a route file is downloaded only when shown,
+  and the e2e test can swap in a synthetic route with `page.route` (ADR-025).
+- *One data source per route:* removing it removes the trail and every marker together, so
+  switching routes can never leave old markers behind.
+- *`clampToGround: true`* drapes the trail over the terrain; *`HeightReference.CLAMP_TO_GROUND`*
+  puts the markers on the ground; *`disableDepthTestDistance: Infinity`* keeps markers visible
+  even where a ridge is in front of them.
+- *Popups:* each stop entity has a `description` (HTML) that Cesium's info box shows when the
+  marker is clicked. The HTML is built in `routeEntities.ts` and every piece of data in it goes
+  through `escapeHtml`, so a "<" in a name can never inject markup.
+- *Async safety:* `dataSources.add` returns a promise. If the route changed or the Viewer was
+  destroyed before it resolved, the `removed` flag / `isDestroyed()` check stops the fly-to.
+
+**Limits.** The first route is shown automatically until the trek selector (#16). Daily stages are
+#49. The info box is Cesium's own; its styling is basic.
+
 ## Key concepts from first principles
 
 - **Static site**: just files; the server does no computation. → Free hosting, but no secrets.
@@ -246,6 +282,14 @@ Distances before the start or after the end are clamped. Example from the tests:
     steps (14 for 10,000 points) instead of up to n.
 22. **What does locateDistance return at exactly a stop's distance, and past the end?** — The start
     of the next segment (t = 0); past the end it is clamped to the last segment with t = 1.
+23. **How do layers get the Cesium Viewer?** — Through `ViewerContext`: CesiumGlobe provides it,
+    layers call `useViewer()` and must handle null.
+24. **How are old markers removed when the route changes?** — Everything is in one
+    `CustomDataSource`; the effect cleanup calls `dataSources.remove(dataSource, true)`.
+25. **Why escape the popup HTML when the data is ours?** — Cheap insurance: a `<` or `&` in a name
+    can never break the popup or inject markup.
+26. **How can the route be tested before real data exists?** — The e2e test intercepts the two
+    requests and serves a synthetic fixture; the screenshot is named `...-synthetic.png`.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -266,6 +310,10 @@ Distances before the start or after the end are clamped. Example from the tests:
    check it with a new test. Why is it the same as one degree along the equator?
 8. Add a test where the route has a single very long segment between many short ones, and check
    that equal steps in distance still give equal steps on the ground.
+9. Change the trail colour and width in `RouteLayer.tsx`, rebuild, and take a screenshot with
+   `UPDATE_SCREENSHOTS=1 npm run e2e`. Then revert.
+10. Explain, with the code open, what happens if the route changes while `dataSources.add` is
+    still pending. Which line stops the old route's fly-to?
 
 ## AI use in this part
 
@@ -289,3 +337,5 @@ Distances before the start or after the end are clamped. Example from the tests:
   28.58 °N), corrected curvature direction and render-mode notes, Q11–Q13 and Q16 rewritten.
 - 2026-11-21 — M4 #18: geo maths walkthrough (haversine with a calculator-safe worked example,
   cumulative distance, binary search), limits, questions 18–22, exercises 7–8.
+- 2026-11-21 — M3 #15: route drawing walkthrough (ViewerContext, data source, popups, async
+  safety), Q23–26, exercises 9–10.

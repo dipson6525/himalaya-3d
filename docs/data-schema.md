@@ -156,6 +156,13 @@ altitudes are made up for testing and do not describe any real place.
 }
 ```
 
+## The route list (`data/routes/index.json`)
+
+Next to the route files is `index.json`: the id and both names of every route, sorted by id.
+The app downloads it first to fill the trek selector and downloads a route file only when it is
+picked. It is generated, never typed: `python -m prep.route_index` (and `prep.build_route` refreshes
+it after every build). A test fails if the committed index does not match the route files.
+
 ## Checking files
 
 ```bash
