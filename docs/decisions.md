@@ -261,3 +261,28 @@ submitted proposal (it split routes and stops), which would confuse the final re
 FR6 → FR5 (checker) and FR6 (editable itinerary). Code headers, docs, viva notes and the GitHub
 issues were updated. NFR11 (ease of use for people new to 3D software) was added from the proposal.
 **Consequences:** One numbering in code, issues, docs and report.
+
+## ADR-023 · Start view, home button and request-render mode (Sparsh, 2026-11-21)
+
+**Context:** Issue #14 (FR1): the globe should open over Nepal with the mountains readable, credits
+visible, and run smoothly on laptops with integrated graphics (NFR1).
+**Decision:**
+- The camera starts 450 km up at 84.1 °E, 22.8 °N (south of Nepal), facing north, 35° down, so
+  the Nepal Himalaya is seen from the side rather than from above. Where the line of sight meets
+  the ground is computed in `nepalView.ts` two ways, both unit tested: a flat-earth estimate
+  (642.7 km away, about 28.58 °N) and the exact answer on a round Earth (about 698.7 km away,
+  about 29.08 °N — farther, because the ground curves away below a flat plane).
+- The view was chosen by comparing two screenshots of the real build: a camera 0.5° further north
+  (exact aim about 29.58 °N) showed mostly the Tibetan plateau; this one centres Nepal's hills and
+  the Himalayan crest (`docs/screenshots/m3-nepal-start-view.png`).
+- The home button is redirected (`beforeExecute` → `cancel = true`) to fly back to the start view.
+- `requestRenderMode: true` and `maximumRenderTimeChange: Infinity`: Cesium redraws only when
+  something changes, instead of about 60 times a second. Cesium notices camera moves, flights,
+  tile loads and window resizes by itself; code that changes the scene in other ways must call
+  `scene.requestRender()`.
+- The OpenStreetMap credit is always on screen (`new Credit(html, true)`), next to Cesium's; its
+  text comes from the i18n files (`credits.osm`).
+**Consequences:** Less GPU work while idle (the team measures the effect in #29, not assumed
+here). Clock-driven features (sun slider #28, flythrough #19) must request renders or lower
+`maximumRenderTimeChange`. The credit area only updates when a frame is drawn, so live layers
+that add or remove credits (#25, #26) must call `requestRender()` afterwards.
