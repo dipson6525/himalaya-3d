@@ -31,9 +31,11 @@ environment, shared folder paths, a citation template, and smoke tests.
 | `data-prep/prep/build_route.py` | Spec → ways → one trail → simplified → checked → GeoJSON | FR2 |
 | `data-prep/route-specs/` | One hand-written TOML spec per trek, plus `_template.toml` | FR2 |
 | `data-prep/tests/test_overpass.py`, `test_build_route.py` | Pipeline tests with synthetic data, no network | FR2 |
+| `app/src/lib/acclim/checker.ts` | The acclimatization rules (`checkItinerary`) and `nightsFromStops` | FR5 |
+| `app/src/lib/acclim/checker.test.ts` | 25 test cases: safe and unsafe plans, exact 3,000 m / 500 m edges | FR5 |
+| `docs/testing/acclimatization-matrix.md` | The same cases as a table for the report (results filled by you) | FR5 |
 
-Coming next: the four routes (#9–#12), altitude cross-check (#13), acclimatization rules (#23),
-itinerary UI (#24).
+Coming next: the four routes (#9–#12), altitude cross-check (#13), itinerary editor (#24).
 
 ## Module walkthroughs
 
@@ -205,6 +207,65 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
 - The cache compares the query text exactly: changing `QUERY_TIMEOUT_S` or the order of
   `osm_ways` makes every cache file stale (on purpose re-fetch needed).
 
+### The acclimatization checker (`app/src/lib/acclim/checker.ts`, issue #23, FR5)
+
+**What it does.** Takes one sleeping altitude per night and returns a list of warnings. It is a
+pure function: no React, no Cesium, no network, so the same input always gives the same output
+and Vitest can test it in milliseconds. The itinerary editor (#24) will call it on every change.
+
+**The rules** (Wilderness Medical Society; Luks et al. 2019, unchanged in the 2024 update: above
+3,000 m, do not raise the *sleeping* altitude by more than 500 m a day, and rest every 3–4 days).
+With S_d = sleeping altitude on night d:
+
+1. **Too fast:** flag night d (d ≥ 2) if S_d > 3000 **and** S_d − S_{d−1} > 500.
+2. **Rest day needed:** a counter g (the proposal's Figure 3.2) goes up by one for every night
+   that is both above 3,000 m and higher than the night before, and goes back to 0 otherwise
+   (rest day = same altitude, descent, or a night at/below 3,000 m). Every night with g > 3 is
+   flagged.
+
+Both comparisons are strict (`>`), so exactly 3,000 m and exactly 500 m are allowed.
+
+**Data flow.**
+
+```
+route stops (day, altitude_m) ──nightsFromStops──► [S_1, S_2, ..., S_n]  (one per night)
+                                   └ nights at a stop = next stop's day − this stop's day
+[S_1 ... S_n] ──checkItinerary──► [{ night, rule: 'too-fast', gainM }
+                                   { night, rule: 'rest-day-needed', nightsGaining }]
+                                   └ the UI (#24) turns these into words with t()
+```
+
+**Worked example** (synthetic numbers, not a real trek): S = [3100, 3400, 3700, 4000, 4600].
+
+| Night | S_d | Gain | Above 3000? | Too fast? (gain > 500) | g | Rest needed? (g > 3) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 3100 | — | yes | — (no night before) | — | — |
+| 2 | 3400 | +300 | yes | no | 1 | no |
+| 3 | 3700 | +300 | yes | no | 2 | no |
+| 4 | 4000 | +300 | yes | no | 3 | no |
+| 5 | 4600 | +600 | yes | **yes** | 4 | **yes** |
+
+So night 5 gets both warnings. That is the test "reports both rules on the same night".
+
+**Why this design.**
+- *Return data, not sentences* — the checker does not know the language; `{rule, night, gainM}`
+  is turned into English or Nepali by the UI, so the same rules serve both languages.
+- *Throw on impossible input (NaN, Infinity, negative)* — that would be a bug in the caller, and
+  guessing would hide it.
+- *Night 1 is never flagged* — there is no night before it to compare with (the flowchart starts
+  at d = 2). The trek's starting town is not in the itinerary.
+
+**How we know the tests are good (mutation check).** Each of these deliberate bugs was put into
+`checker.ts` one at a time, and the tests failed every time: dropping the 3,000 m condition from
+the counter; `>` → `>=` in each of the three comparisons; never resetting the counter.
+
+**Limits (say these honestly).**
+- It applies one published rule of thumb. It knows nothing about the person's health, previous
+  altitude, medicines or symptoms — hence "general guidance, not medical advice", always shown.
+- It looks only at sleeping altitudes, not the highest point reached during the day.
+- The proposal's flowchart does not say what to do with nights at or below 3,000 m in the run
+  counter; we reset it (team decision, ADR-024) because the guideline only applies above 3,000 m.
+
 ## Key concepts from first principles
 
 - **GeoJSON**: a JSON format for map features. Coordinates are `[longitude, latitude]` — note
@@ -315,6 +376,22 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
     rejects unknown keys, so the build stops with "unknown key(s) simplify_tolerence_m (typo?)"
     instead of silently using the 5 m default.
 
+30. **State the acclimatization rule you implemented and cite it.** — Wilderness Medical Society
+    (Luks et al. 2019; 2024 update keeps it): above 3,000 m, don't raise the sleeping altitude by
+    more than 500 m a day, and rest every 3–4 days. Our checks: S_d > 3000 and S_d − S_{d−1} > 500;
+    and more than 3 nights in a row sleeping higher above 3,000 m.
+31. **Is 3,000 m flagged? Is a 500 m gain flagged?** — No and no: both comparisons are strict
+    (`>`). Tests cover exactly 3,000 m, exactly 500 m, 3,001 m and 501 m.
+32. **Why is night 1 never flagged?** — There is no night before it; the flowchart starts at d = 2.
+33. **What resets the "nights gaining" counter?** — A rest day (same altitude), a descent, or a
+    night at or below 3,000 m (ADR-024).
+34. **Why does the checker return objects, not sentences?** — So the UI can show the warning in
+    English or Nepali; the rules don't depend on the language.
+35. **How do you know your tests would catch a mistake?** — Mutation check: five deliberate bugs
+    (for example `>` → `>=`) were put in one at a time and the tests failed every time.
+36. **Is this medical advice?** — No. It applies one rule of thumb to sleeping altitudes only and
+    knows nothing about the person; the disclaimer is always shown.
+
 ## AI use in this part
 
 - **Issue #6 (2026-11-20):** Claude Code drafted `docs/data-schema.md`, `prep/schema.py`,
@@ -335,6 +412,10 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
   - many bad inputs crashed with a traceback instead of a clear message.
 
   No real Overpass query was made; the first one is yours, in #9.
+- **Issue #23 (2026-11-21):** Claude Code wrote `checker.ts`, its 25 tests, ADR-024 and this
+  section, and ran the mutation check. Hand-checking the test matrix found one weak test (a
+  "reset" case that used a descent, so it could not fail for the reason it claimed); it was
+  replaced before the PR.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -355,6 +436,12 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
    before you run it.
 10. Make the first real route: copy `_template.toml`, choose the OSM ways for the first EBC stage
     on openstreetmap.org, run `python -m prep.build_route` once, and commit the cache file (#9).
+11. Change the rest-day rule to "every 3 days" (flag the 3rd night in a row instead of the 4th):
+    which constant do you change, which tests break, and how must they change? Do it, then revert.
+12. Work through the itinerary [2800, 3300, 3900, 3900, 4300, 4800, 5100] on paper with the table
+    from the worked example (gain, above 3000?, too fast?, g, rest needed?), then check your answer
+    by adding it as a test.
+13. Explain to a teammate why `nightsFromStops` for stops on days 1, 2, 4 gives four nights.
 
 ## Changelog
 
@@ -365,3 +452,5 @@ answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
 - 2026-11-21 — M2 #8: pipeline walkthrough, UTM/metre-tolerance/length worked examples,
   questions 19–29, exercises 8–10 (exercise 1 changed: the test it asked for now exists);
   closed-loop, stop-distance and input checks added after the code review.
+- 2026-11-21 — M5 #23: checker walkthrough, worked example table, mutation check, limits,
+  questions 30–36, exercises 11–13.
