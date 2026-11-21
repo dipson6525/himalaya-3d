@@ -39,8 +39,25 @@ DEFAULT_TOLERANCE_M = 5.0
 # Decimal places kept for longitude/latitude. 6 places is about 0.1 m, far finer than OSM accuracy.
 COORDINATE_DECIMALS = 6
 
+# Every stop must lie within this distance of the trail line. A larger distance usually means a
+# wrong lon/lat or a wrong way list. Team choice, see ADR-019.
+MAX_STOP_DISTANCE_M = 500.0
+
 # Where route specs live.
 SPECS_DIR = paths.DATA_PREP_DIR / "route-specs"
+
+# Keys a spec must have, and the optional ones. Anything else is probably a typo
+# (for example "simplify_tolerence_m"), so it is an error rather than silently ignored.
+REQUIRED_SPEC_KEYS = (
+    "id",
+    "name_en",
+    "name_ne",
+    "description_en",
+    "description_ne",
+    "geometry_source",
+    "stops",
+)
+OPTIONAL_SPEC_KEYS = ("osm_relation", "osm_ways", "simplify_tolerance_m")
 
 
 class RouteBuildError(Exception):
@@ -52,23 +69,64 @@ class RouteBuildError(Exception):
 # --------------------------------------------------------------------------------------------
 
 
+def _is_whole_number(value: object) -> bool:
+    """True for an int that is not a bool (in Python, True and False are ints too)."""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_number(value: object) -> bool:
+    """True for an int or float that is not a bool."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def load_spec(path: Path) -> dict:
-    """Read a route spec (TOML). The file name without .toml must equal the spec's `id`."""
-    with path.open("rb") as file:
-        spec = tomllib.load(file)
-    if spec.get("id") != path.stem:
-        raise RouteBuildError(f"{path.name}: id {spec.get('id')!r} must equal the file name")
+    """Read and check a route spec (TOML). Problems become a RouteBuildError with a clear message.
+
+    The checks here are about the SPEC (keys, OSM ids, tolerance, stop positions). The route
+    properties themselves (names, days, altitudes, sources) are checked later by the schema
+    validator, so the two never disagree about those rules.
+    """
+    name = path.name
+    try:
+        # "utf-8-sig" also accepts a UTF-8 file that starts with a byte-order mark (BOM).
+        spec = tomllib.loads(path.read_text(encoding="utf-8-sig"))
+    except UnicodeDecodeError as error:
+        raise RouteBuildError(
+            f"{name}: save the file as UTF-8 (PowerShell 5 may save UTF-16)"
+        ) from error
+    except tomllib.TOMLDecodeError as error:
+        raise RouteBuildError(f"{name}: not valid TOML: {error}") from error
+
+    missing = [key for key in REQUIRED_SPEC_KEYS if key not in spec]
+    unknown = [key for key in spec if key not in REQUIRED_SPEC_KEYS + OPTIONAL_SPEC_KEYS]
+    if missing:
+        raise RouteBuildError(f"{name}: missing {', '.join(missing)}")
+    if unknown:
+        raise RouteBuildError(f"{name}: unknown key(s) {', '.join(unknown)} (typo?)")
+    if spec["id"] != path.stem:
+        raise RouteBuildError(f"{name}: id {spec['id']!r} must equal the file name")
+
     has_relation = "osm_relation" in spec
-    has_ways = bool(spec.get("osm_ways"))
+    has_ways = "osm_ways" in spec
     if has_relation == has_ways:
-        raise RouteBuildError(f"{path.name}: give exactly one of osm_relation or osm_ways")
-    stops = spec.get("stops")
-    if not stops:
-        raise RouteBuildError(f"{path.name}: list the overnight stops ([[stops]] tables)")
+        raise RouteBuildError(f"{name}: give exactly one of osm_relation or osm_ways")
+    if has_relation and not _is_whole_number(spec["osm_relation"]):
+        raise RouteBuildError(f"{name}: osm_relation must be a whole number")
+    if has_ways:
+        ways = spec["osm_ways"]
+        if not (isinstance(ways, list) and ways and all(_is_whole_number(w) for w in ways)):
+            raise RouteBuildError(f"{name}: osm_ways must be a non-empty list of whole numbers")
+
+    tolerance = spec.get("simplify_tolerance_m", DEFAULT_TOLERANCE_M)
+    if not (_is_number(tolerance) and tolerance >= 0):
+        raise RouteBuildError(f"{name}: simplify_tolerance_m must be a number of metres, 0 or more")
+
+    stops = spec["stops"]
+    if not (isinstance(stops, list) and stops and all(isinstance(s, dict) for s in stops)):
+        raise RouteBuildError(f"{name}: list the overnight stops as [[stops]] tables")
     for number, stop in enumerate(stops):
-        lon, lat = stop.get("lon"), stop.get("lat")
-        if not (isinstance(lon, (int, float)) and isinstance(lat, (int, float))):
-            raise RouteBuildError(f"{path.name}: stop {number} needs numbers for lon and lat")
+        if not (_is_number(stop.get("lon")) and _is_number(stop.get("lat"))):
+            raise RouteBuildError(f"{name}: stop {number} needs numbers for lon and lat")
     return spec
 
 
@@ -90,11 +148,20 @@ def ways_to_lines(overpass_answer: dict) -> list[LineString]:
     Overpass lists a way's positions as {"lat": ..., "lon": ...}; shapely, like GeoJSON, wants
     (x, y) = (longitude, latitude), so we swap the order here.
     """
+    elements = overpass_answer.get("elements") if isinstance(overpass_answer, dict) else None
+    if not isinstance(elements, list):
+        raise RouteBuildError("the Overpass answer has no list of 'elements'")
+
     lines = []
-    for element in overpass_answer.get("elements", []):
-        if element.get("type") != "way":
+    for element in elements:
+        if not isinstance(element, dict) or element.get("type") != "way":
             continue
-        positions = [(point["lon"], point["lat"]) for point in element.get("geometry", [])]
+        positions = []
+        for point in element.get("geometry") or []:
+            good = isinstance(point, dict) and _is_number(point.get("lon"))
+            if not (good and _is_number(point.get("lat"))):
+                raise RouteBuildError(f"way {element.get('id')}: a position has no lon/lat")
+            positions.append((point["lon"], point["lat"]))
         if len(positions) >= 2:
             lines.append(LineString(positions))
     if not lines:
@@ -105,11 +172,20 @@ def ways_to_lines(overpass_answer: dict) -> list[LineString]:
 def merge_lines(lines: list[LineString]) -> LineString:
     """Join the ways end-to-end into ONE continuous LineString.
 
-    shapely's linemerge joins lines that share an end point, flipping them where needed. If the
-    result is still several pieces, the trail has a gap (or a branch) and we refuse to continue.
+    shapely's linemerge joins lines that share an end point, flipping them where needed. We
+    refuse to continue if:
+      * the result is still several pieces: the trail has a gap (or a side branch);
+      * the result is a closed loop (first point == last point): the ways include a parallel
+        alternative path or the same way twice, so the "trail" goes round in a circle.
     """
     merged = linemerge(MultiLineString(lines))
     if isinstance(merged, LineString):
+        if merged.is_closed:
+            raise RouteBuildError(
+                "the ways join into a closed loop, not a trail from A to B. Remove a parallel "
+                "alternative path or a way listed twice (route relations can include "
+                "'alternative' or 'excursion' ways)."
+            )
         return merged
     pieces = list(merged.geoms)
     ends = "; ".join(
@@ -137,6 +213,30 @@ def orient(line: LineString, start: tuple[float, float]) -> LineString:
     if start_point.distance(last) < start_point.distance(first):
         return LineString(list(line.coords)[::-1])
     return line
+
+
+def stop_distance_m(line: LineString, position: tuple[float, float]) -> float:
+    """Shortest distance in metres from a stop to the trail line (both projected to UTM)."""
+    epsg = utm_epsg_for(line.centroid.x)
+    to_metres = pyproj.Transformer.from_crs(4326, epsg, always_xy=True).transform
+    line_m = shapely.transform(line, to_metres, interleaved=False)
+    point_m = shapely.transform(Point(position), to_metres, interleaved=False)
+    return line_m.distance(point_m)
+
+
+def check_stops_near_trail(line: LineString, stops: list[dict]) -> None:
+    """Every stop must be within MAX_STOP_DISTANCE_M of the trail, or the build stops.
+
+    A stop far from the trail almost always means a typo in its lon/lat (or a wrong way list),
+    and nothing else would notice: the schema only checks that a position is inside Nepal.
+    """
+    for stop in stops:
+        distance = stop_distance_m(line, (stop["lon"], stop["lat"]))
+        if distance > MAX_STOP_DISTANCE_M:
+            raise RouteBuildError(
+                f"stop {stop.get('id')!r} is {distance:.0f} m from the trail (limit "
+                f"{MAX_STOP_DISTANCE_M:.0f} m). Check its lon/lat and the way list."
+            )
 
 
 def utm_epsg_for(longitude: float) -> int:
@@ -248,6 +348,7 @@ def build_route(
     merged = merge_lines(ways)
     first_stop = spec["stops"][0]
     trail = orient(merged, (first_stop["lon"], first_stop["lat"]))
+    check_stops_near_trail(trail, spec["stops"])
     tolerance_m = float(spec.get("simplify_tolerance_m", DEFAULT_TOLERANCE_M))
     simplified = simplify_line(trail, tolerance_m)
 

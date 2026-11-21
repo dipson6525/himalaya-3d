@@ -20,7 +20,9 @@ and the overnight stops with their cited altitudes. `prep/build_route.py` turns 
    The first run asks Overpass once and saves the answer in `data-prep/cache/<route-id>-ways.json`.
    Commit that file. Later runs (and `--offline`) use it.
 5. If the build says the ways form several separate pieces, a way is missing (or a side path was
-   included). Fix the list of ways; never draw the missing part by hand.
+   included). If it says they form a closed loop, an alternative path or a duplicate way is in
+   the list. If it says a stop is too far from the trail (more than 500 m), check that stop's
+   lon/lat. Fix the spec; never draw or move anything by hand in the output.
 
 ## Rules
 

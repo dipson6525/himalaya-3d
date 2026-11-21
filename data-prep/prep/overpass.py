@@ -77,7 +77,17 @@ def fetch_cached(
     """
     path = cache_path(name, cache_dir)
     if path.exists():
-        cached = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            cached = json.loads(path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise OverpassError(
+                f"{path.name} is damaged ({error}). If git left merge-conflict markers in it, "
+                "restore it with git; otherwise delete it and fetch again."
+            ) from error
+        if not isinstance(cached, dict) or not isinstance(cached.get("response"), dict):
+            raise OverpassError(
+                f"{path.name} has no saved Overpass answer; delete it and fetch again"
+            )
         if cached.get("query") != query:
             raise OverpassError(
                 f"{path.name} was made by a different query. If the route changed on purpose, "
@@ -90,18 +100,28 @@ def fetch_cached(
     if not allow_network:
         raise OverpassError(f"{path.name} is not cached and network use was turned off")
 
-    response = post(
-        OVERPASS_URL,
-        data={"data": query},
-        headers={"User-Agent": USER_AGENT},
-        timeout=REQUEST_TIMEOUT_S,
-    )
+    try:
+        response = post(
+            OVERPASS_URL,
+            data={"data": query},
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT_S,
+        )
+    except requests.RequestException as error:  # no connection, timeout, ...
+        raise OverpassError(
+            f"could not reach Overpass ({error}); try again later by hand"
+        ) from error
     if response.status_code != 200:
         raise OverpassError(
             f"Overpass answered HTTP {response.status_code}. Wait a few minutes and try again "
             "by hand; do not retry in a loop (429 = too many requests, 504 = server busy)."
         )
-    answer = response.json()
+    try:
+        answer = response.json()
+    except ValueError as error:  # the body was not JSON (for example an HTML error page)
+        raise OverpassError("Overpass's answer was not JSON; try again later by hand") from error
+    if not isinstance(answer, dict) or not isinstance(answer.get("elements"), list):
+        raise OverpassError("Overpass's answer has no list of 'elements'")
     if "remark" in answer:
         # Overpass reports problems such as a timeout inside an otherwise normal answer.
         raise OverpassError(f"Overpass reported a problem: {answer['remark']}")

@@ -17,13 +17,17 @@ what the TEAM must do next, open questions.
   5 m) → stops added → schema check → `data/routes/<id>.geojson`, one feature per line.
 - `route-specs/_template.toml` + README; ADR-019; route-data skill, data-prep README and
   route-sources.md updated; glossary (EPSG, linemerge, TOML, UTM); Unique's viva notes.
+- Code review before the PR: closed loops (parallel or duplicate ways) and stops more than 500 m
+  from the trail now stop the build; bad specs, damaged caches, network errors and malformed
+  Overpass answers give clear errors instead of crashes; one test could have reached the network
+  and now cannot.
 - No real Overpass query yet: choosing the EBC ways is #9.
 
 **Test evidence (local, Windows)**
 
 ```
 data-prep> ruff check .   → All checks passed!
-data-prep> pytest -q -W error::DeprecationWarning → 92 passed, 1 skipped
+data-prep> pytest -q -W error::DeprecationWarning → 111 passed, 1 skipped
 ```
 
 **TEAM TODO:** review #38 first (this branch builds on it), then this PR. Unique: pick the OSM
