@@ -5,6 +5,28 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · M5 #23 Acclimatization rules (owner: Unique) · M7 #31 testing templates
+
+**Done**
+
+- `app/src/lib/acclim/checker.ts`: `checkItinerary` (too fast: S_d > 3000 and gain > 500; rest day
+  needed: more than 3 nights in a row sleeping higher above 3,000 m) and `nightsFromStops`. Cites
+  Luks et al. 2019/2024; details decided in ADR-024. Pure TypeScript, returns data for the UI.
+- 25 Vitest cases (`checker.test.ts`) incl. exactly 3,000 m / exactly 500 m; a mutation check put
+  five deliberate bugs in the rules and the tests caught every one. One weak test (a "reset" case
+  that used a descent) was found by hand and replaced.
+- #31 (merged as #45): `docs/testing/` templates for FPS, load time, altitude comparison, the
+  acclimatization matrix (same cases as the tests) and the 10+ user questionnaire (SUS + project
+  questions, printable form). All result cells are empty for the team.
+
+**Test evidence (local):** `npx vitest run src/lib/acclim/checker.test.ts` → 25 passed;
+`npm run lint` and `npm run typecheck` clean.
+
+**TEAM TODO:** Unique: exercises 11–13; fill the Result column of the acclimatization matrix after
+running the tests yourself.
+
+---
+
 ## 2026-11-21 · M3 #14 Nepal-centred viewer (owner: Sparsh)
 
 **Done**

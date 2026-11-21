@@ -286,3 +286,21 @@ visible, and run smoothly on laptops with integrated graphics (NFR1).
 here). Clock-driven features (sun slider #28, flythrough #19) must request renders or lower
 `maximumRenderTimeChange`. The credit area only updates when a frame is drawn, so live layers
 that add or remove credits (#25, #26) must call `requestRender()` afterwards.
+
+## ADR-024 · How the acclimatization rules are applied (Unique, 2026-11-21)
+
+**Context:** Issue #23 (FR5). The proposal's section 3.6 and Figure 3.2 give the rules; a few
+details had to be decided to write code and tests.
+**Decision:** (in `app/src/lib/acclim/checker.ts`)
+- Input is one sleeping altitude per night; route stops become nights with `nightsFromStops`
+  (nights at a stop = next stop's day − this stop's day; the last stop counts as one night).
+- Rule 1: flag night d ≥ 2 if S_d > 3000 and S_d − S_{d−1} > 500 (both strict, so exactly 3,000 m
+  and exactly 500 m are allowed). Night 1 has no previous night and is never flagged.
+- Rule 2: a counter increases for each night that is above 3,000 m and higher than the night
+  before; any other night (rest day, descent, at or below 3,000 m) resets it to 0. Every night
+  with a count above 3 is flagged. The flowchart leaves the "at or below 3,000 m" case open; we
+  reset because the guideline only applies above 3,000 m.
+- The checker returns data (`{night, rule, ...}`), not sentences, and throws a RangeError for
+  impossible altitudes (NaN, Infinity, negative).
+**Consequences:** The UI (#24) words the warnings in both languages. Changing the rule ("rest every
+3 days") means changing one constant and the matching tests.
