@@ -1,0 +1,35 @@
+# Route spec template (owner: Unique Ghimire). See data-prep/route-specs/README.md.
+#
+# Copy this file to <route-id>.toml (for example everest-base-camp.toml), fill it in, then run:
+#     python -m prep.build_route <route-id>
+# Every value marked TODO must be replaced with a verified value. The build refuses to write a
+# route that still contains TODO, and every altitude must cite a Source ID listed in
+# data/routes/route-sources.md.
+
+id = "TODO-route-id"                 # must equal the file name without .toml
+name_en = "TODO English name"
+name_ne = "TODO नेपाली नाम"
+description_en = "TODO one or two sentences."
+description_ne = "TODO एक वा दुई वाक्य।"
+geometry_source = "OSM"              # the trail line comes from OpenStreetMap
+
+# Which OpenStreetMap ways make up the trail. Use EXACTLY ONE of these two lines:
+#   osm_relation = 1234567           # a hiking route relation, if OSM has one for this trek
+#   osm_ways = [111, 222, 333]       # otherwise, the ids of the ways, picked on openstreetmap.org
+osm_ways = []
+
+simplify_tolerance_m = 5             # see ADR-019 before changing
+
+# One [[stops]] table per overnight stop, in walking order. The first stop is day 1.
+# lon/lat: where the stop is (for example the village's OSM node); they become the Point.
+[[stops]]
+id = "todo-stop"
+name_en = "TODO"
+name_ne = "TODO"
+day = 1
+altitude_m = -1                      # TODO from a published source (-1 fails the check on purpose)
+altitude_source = "TODO"             # a Source ID from data/routes/route-sources.md
+description_en = "TODO"
+description_ne = "TODO"
+lon = 0.0
+lat = 0.0

@@ -149,3 +149,42 @@ feature needs it.
 **Consequences:** A route line must be one continuous LineString; if OSM has gaps, the pipeline
 (#8) has to deal with them and record how. Schema changes need the doc, validator, tests and
 TypeScript types updated together.
+
+## ADR-019 · Route data pipeline (Unique, 2026-11-21)
+
+**Context:** Issue #8. Route lines must come from OpenStreetMap, be reproducible, respect the
+Overpass service, and end up in the ADR-017 format.
+**Decision:**
+- One hand-written **route spec** per trek (`data-prep/route-specs/<id>.toml`, TOML read with the
+  standard-library `tomllib`): names, descriptions, the OSM relation id OR the list of way ids,
+  the simplification tolerance and the stops (with lon/lat and cited altitudes).
+- `prep/overpass.py` sends at most one query per route, with a User-Agent, `[timeout:60]` in the
+  query and a 90 s request timeout, and no retry loop. It refuses to run when `CI` is set, and
+  saves the answer to `data-prep/cache/<id>-ways.json` together with the exact query, the fetch
+  date and the ODbL licence line. A cache made by a different query is refused, not silently used.
+  The query text is compared exactly, so changing `QUERY_TIMEOUT_S` or reordering `osm_ways`
+  makes every committed cache file stale: do that only on purpose, and re-fetch afterwards.
+- `prep/build_route.py` merges the ways with `shapely.ops.linemerge`. **The build stops** if the
+  ways do not form one continuous line (a gap or a side branch) or if they form a **closed loop**
+  (a parallel alternative path or a way listed twice; route relations can contain such ways). We
+  never draw missing trail by hand. The line is then turned to start at the first stop.
+- **Every stop must lie within 500 m of the trail line**, or the build stops: a stop further away
+  almost always means a typo in its lon/lat or a wrong way list. 500 m is a team choice that allows
+  for villages set back from the path. TODO(team): confirm or change it when the first real routes
+  are built (#9–#12).
+- The line is simplified with Douglas-Peucker in metres (projected to the UTM zone of the line's
+  centre, EPSG 32644 or 32645 in Nepal). Coordinates are rounded to 6 decimals (about 0.1 m). The
+  result must pass the schema validator before it is written, one feature per line.
+- Bad input (a spec that is not UTF-8 or not valid TOML, missing or misspelt keys, way ids that
+  are not whole numbers, a negative tolerance, a damaged cache file, no connection, a non-JSON
+  answer) gives a one-line error message, never a crash.
+- Default tolerance **5 m**: every point of the simplified line stays within 5 m of the OSM line,
+  which is a tenth of the 50 m spacing planned for elevation sampling (#21), so simplification
+  should not noticeably change the profile. TODO(team): check visually on the globe in M3 and
+  record any change here.
+**Alternatives:** querying all paths in a bounding box (pulls in side trails and needs manual
+cleaning anyway); simplifying in degrees (a tolerance in degrees means different metres east-west
+and north-south); GDAL/ogr2ogr (not installed, ADR-006); bridging small gaps automatically
+(invents geometry).
+**Consequences:** Building a new route needs the right OSM way list; a missing way shows up as a
+clear error. Re-running is offline and deterministic once the cache file is committed.

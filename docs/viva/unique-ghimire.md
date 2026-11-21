@@ -27,9 +27,13 @@ environment, shared folder paths, a citation template, and smoke tests.
 | `data-prep/tests/test_schema.py` | One test per rule, plus a check of every real route file | FR2, FR3 |
 | `app/src/features/routes/types.ts` | The same shape as TypeScript types + type guards, for the front end | FR2, FR3 |
 | `app/src/features/routes/types.test.ts` | Vitest check of the type guards | FR2, FR3 |
+| `data-prep/prep/overpass.py` | One cached, polite Overpass request per route; never in CI | FR2 |
+| `data-prep/prep/build_route.py` | Spec → ways → one trail → simplified → checked → GeoJSON | FR2, FR3 |
+| `data-prep/route-specs/` | One hand-written TOML spec per trek, plus `_template.toml` | FR2, FR3 |
+| `data-prep/tests/test_overpass.py`, `test_build_route.py` | Pipeline tests with synthetic data, no network | FR2 |
 
-Coming next: Overpass pipeline (#8), four routes (#9–#12), altitude cross-check (#13),
-acclimatization rules (#23), itinerary UI (#24).
+Coming next: the four routes (#9–#12), altitude cross-check (#13), acclimatization rules (#23),
+itinerary UI (#24).
 
 ## Module walkthroughs
 
@@ -131,6 +135,76 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
 - *Reject `TODO` and unknown property names* — makes "never invent data" and typo-catching
   automatic in CI instead of relying on reviewers.
 
+### The route pipeline (`prep/overpass.py`, `prep/build_route.py`, issue #8)
+
+**Data flow.**
+
+```
+route-specs/<id>.toml ──load_spec──► spec (names, OSM ids, stops)
+        │
+        ├─query_for──► Overpass QL text ──fetch_cached──► answer
+        │                (cache hit: read data-prep/cache/<id>-ways.json; miss: ONE request, then save)
+        │
+        ▼
+answer ──ways_to_lines──► one LineString per OSM way, (lon, lat)
+       ──merge_lines───► ONE LineString   (gap, branch or closed loop → stop with an error)
+       ──orient────────► starts at the end nearer the first stop
+       ──check_stops_near_trail──► every stop within 500 m of the trail, or stop
+       ──simplify_line─► Douglas–Peucker with the tolerance in metres (UTM)
+       ──build_feature_collection + schema.validate_route──► errors? stop, write nothing
+       ──to_geojson_text──► data/routes/<id>.geojson (one feature per line)
+```
+
+**Key functions.**
+- `build_query` (overpass.py) — `[out:json][timeout:60];way(id:1,2);out geom;` for a way list, or
+  `relation(ID);way(r);out geom;` for a route relation. `out geom` puts each way's positions in
+  the answer, so one request is enough.
+- `fetch_cached` — cache first; if the cached query differs from today's query it refuses (the
+  spec changed, so the cache is out of date). With no cache: refuses in CI (`CI` env variable) or
+  with `--offline`; otherwise sends **one** POST with the User-Agent and a 90 s timeout. A non-200
+  answer or an Overpass `remark` (for example a timeout) raises an error and saves nothing; there
+  is no retry loop. The saved file holds the query, the UTC date and the ODbL licence line.
+- `load_spec` — reads the TOML (also accepts a UTF-8 byte-order mark) and checks the spec itself:
+  required keys, no unknown keys (a typo such as `simplify_tolerence_m` is an error, not silently
+  ignored), whole-number OSM ids, tolerance ≥ 0, stops as `[[stops]]` tables with numeric lon/lat.
+  The route properties (names, days, altitudes, sources) are left to the schema validator, so the
+  two tools never disagree about those rules.
+- `merge_lines` — `shapely.ops.linemerge` joins lines that share an end point. One open piece →
+  done; several pieces → error listing where each piece starts and ends; one **closed** piece
+  (first point = last point) → error, because a parallel alternative path (A–B–C plus A–C) or a
+  way listed twice makes the "trail" go round in a circle.
+- `orient` — compares the distance from the first stop to each end and reverses if needed.
+- `check_stops_near_trail` — measures each stop's distance to the trail in metres (UTM) and stops
+  the build if one is more than 500 m away, which catches a mistyped lon/lat that the schema
+  (which only checks "inside Nepal") would let through.
+- `utm_epsg_for` + `simplify_line` — project to metres, simplify, project back.
+- `build_route` — runs everything and returns a report (ways merged, points before/after,
+  length before/after, tolerance) that `main` prints.
+
+**Why this design** (ADR-019).
+- *A spec file per route* — the only hand-written input; everything else is generated, so
+  `data/routes/*.geojson` is never edited by hand.
+- *Cache with the query inside* — anyone can see exactly what was asked and when, and a stale
+  cache cannot silently be used after the spec changes.
+- *Stop on gaps* — joining two pieces with a straight line would invent a trail that may cross a
+  river or a cliff. The fix is to find the missing OSM way.
+- *Simplify in metres, not degrees* — at 28 °N one degree of latitude is about 110.9 km but one
+  degree of longitude only about 98.3 km, so "0.00005 degrees" would mean different distances in
+  different directions.
+- *Fake `post` in tests* — `fetch_cached` takes the request function as a parameter, so tests pass
+  a fake one and never touch the network.
+
+**Limits.**
+- No real route has been built yet; the first real Overpass query happens in #9.
+- Choosing the right OSM ways is human work; the pipeline only checks that they join up.
+- Out-and-back treks: the line is the trail one way. Stops on the way back need their own ids
+  (for example `namche-bazaar-return`).
+- The 5 m tolerance is reasoned, not yet checked on the globe (TODO in ADR-019, M3).
+- The 500 m stop limit is a team choice, not a measured value; confirm it with the first real
+  routes (TODO in ADR-019).
+- The cache compares the query text exactly: changing `QUERY_TIMEOUT_S` or the order of
+  `osm_ways` makes every cache file stale (on purpose re-fetch needed).
+
 ## Key concepts from first principles
 
 - **GeoJSON**: a JSON format for map features. Coordinates are `[longitude, latitude]` — note
@@ -152,6 +226,19 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
   night 1 = A, night 2 = A, night 3 = B. M5's checker starts from exactly this list.
 - **Devanagari**: the script Nepali is written in; Unicode block U+0900–U+097F. Checking for at
   least one such character catches English accidentally pasted into `name_ne`.
+- **UTM zones (worked example)**: zones are 6° wide, numbered from 180° W. Zone number =
+  floor((lon + 180) / 6) + 1. For a longitude of 86.7 °E: (86.7 + 180) / 6 = 44.45 → floor 44 →
+  zone 45 → EPSG 32645 (326xx = UTM north). For 83.9 °E: 263.9 / 6 = 43.98 → zone 44 → EPSG 32644.
+  Exactly 84 °E gives 264 / 6 = 44 → zone 45, so a boundary belongs to the eastern zone (tested).
+- **Why a metre tolerance needs a projection (worked example)**: the tests put a middle point
+  0.000018° north of a straight east–west line at 28 °N. 0.000018 × 110.9 km ≈ 2 m, which is less
+  than the 5 m tolerance, so Douglas–Peucker drops it. Moved 0.00018° (≈ 20 m) it is kept.
+- **Length check (worked example)**: 0.01° of longitude at 28 °N ≈ 0.01 × 111.32 km × cos 28°
+  = 0.01 × 111.32 × 0.883 ≈ 0.983 km. `length_m` (pyproj `Geod` on the WGS84 ellipsoid) agrees
+  within 1%; the test checks exactly this.
+- **Overpass `out geom`**: asks Overpass to include each way's list of `{lat, lon}` positions in
+  the answer. Note Overpass writes lat first, while shapely and GeoJSON use (lon, lat):
+  `ways_to_lines` swaps them.
 - **The acclimatization rule (preview for M5)**: above 3,000 m, don't raise your *sleeping*
   altitude by more than 500 m per day, and take a rest day every 3–4 days (Luks et al. 2019;
   unchanged in the 2024 update).
@@ -200,6 +287,33 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
     this part" below. Answer in your own words after you have done exercises 5–7.
 18. **What was hardest?** — TODO(Unique): answer from your own experience. Do not memorise a
     model answer here; examiners can tell.
+19. **How do you make sure you never overload Overpass?** — One query per route per run, answers
+    cached and committed, a 90 s timeout and `[timeout:60]` in the query, a User-Agent, no retry
+    loop, and the code refuses to call it when `CI` is set.
+20. **What happens if you change the way list in a spec?** — The new query no longer matches the
+    one saved in the cache file, so `fetch_cached` refuses and tells you to delete the cache file
+    and fetch again (on purpose, by hand).
+21. **What does the pipeline do if two OSM ways do not touch?** — `linemerge` returns several
+    pieces and `merge_lines` stops with an error listing their ends. We never bridge the gap.
+22. **Why project to UTM before simplifying?** — The tolerance is in metres; degrees are not the
+    same length east–west and north–south. In UTM, x and y are metres.
+23. **Which UTM zone is used, and why not always 45?** — The zone of the line's centre:
+    floor((lon + 180) / 6) + 1. Most treks are in zone 45, but western Nepal (and the Annapurna
+    area near 84 °E) can fall in zone 44.
+24. **Why one feature per line in the output file?** — Small, readable git diffs; pretty-printing
+    every coordinate would make thousands of lines.
+25. **How are the network parts tested without the internet?** — `fetch_cached` takes `post` as a
+    parameter; tests pass a fake that records the call, and `monkeypatch` removes or sets `CI`.
+26. **What does `orient` do and why?** — OSM ways have no walking direction; after merging the
+    line may run backwards, so it is flipped to start at the end nearer the first stop.
+27. **Why refuse a closed loop?** — A closed line has no start and end, so `orient` cannot put the
+    first stop at the start, and the trail would be roughly twice as long (both the main path and
+    the alternative). It means the way list includes an alternative path or a duplicate way.
+28. **How do you catch a stop whose lon/lat has a typo?** — The schema only checks the position
+    is inside Nepal; `check_stops_near_trail` checks it is within 500 m of the trail line.
+29. **What happens if the spec has `simplify_tolerence_m = 500` (misspelt)?** — `load_spec`
+    rejects unknown keys, so the build stops with "unknown key(s) simplify_tolerence_m (typo?)"
+    instead of silently using the 5 m default.
 
 ## AI use in this part
 
@@ -212,11 +326,20 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
   wrong statements (including the Douglas–Peucker description), which were corrected.
 - **What you must still do:** read every function, run `pytest` yourself, do exercises 5–7 by hand,
   and be able to explain the "Code details" and "Limits" sections without the notes.
+- **Issue #8 (2026-11-21):** Claude Code drafted `prep/overpass.py`, `prep/build_route.py`, the
+  spec template, their tests, ADR-019 and the pipeline sections of these notes. A code-reviewer
+  subagent found real problems before the PR, all fixed with tests:
+  - closed loops (parallel or duplicate ways) were accepted;
+  - stops far from the trail were not caught;
+  - one test could have reached the real network if a guard broke;
+  - many bad inputs crashed with a traceback instead of a clear message.
+
+  No real Overpass query was made; the first one is yours, in #9.
 
 ## Prove you understand it (do these by hand, no AI)
 
-1. Write a new pytest case where `simplify` must KEEP the middle point (move it off the line by
-   more than the tolerance). Predict the result before running it.
+1. In `test_simplify_removes_a_2_m_wiggle_but_keeps_a_20_m_bend`, change the tolerance from 5 to
+   25 m. Predict which assertion fails and why, run `pytest` to check, then revert.
 2. Add a `GPX_DIR` constant to `paths.py` for raw GPX files and a test that it is under `data-prep/`.
 3. Explain, using a sketch, how Douglas–Peucker decides which points to drop.
 4. Find one published source for Namche Bazaar's altitude and add it to `route-sources.md`.
@@ -226,6 +349,12 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
    breaks, then run `pytest` to check your prediction. Revert afterwards.
 7. Write the list of sleeping altitudes per night for a 3-stop synthetic route with days 1, 2, 4
    using the "nights from days" rule — on paper.
+8. Work out by hand the UTM zone and EPSG code for 80.5 °E and for 88.0 °E, then check them with
+   `utm_epsg_for` in a Python shell.
+9. Write a test where three ways form a "Y" (a side branch). Predict what `merge_lines` returns
+   before you run it.
+10. Make the first real route: copy `_template.toml`, choose the OSM ways for the first EBC stage
+    on openstreetmap.org, run `python -m prep.build_route` once, and commit the cache file (#9).
 
 ## Changelog
 
@@ -233,3 +362,6 @@ route-sources.md ──load_source_ids (reads the file)──► parse_source_id
 - 2026-11-20 — M1 #6: route schema, validator walkthrough, code details, limits, worked examples,
   questions 7–18, exercises 5–7, AI-use section; corrected Douglas–Peucker and Q4/Q7/Q13 after
   the viva-examiner check.
+- 2026-11-21 — M2 #8: pipeline walkthrough, UTM/metre-tolerance/length worked examples,
+  questions 19–29, exercises 8–10 (exercise 1 changed: the test it asked for now exists);
+  closed-loop, stop-distance and input checks added after the code review.
