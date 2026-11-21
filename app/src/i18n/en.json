@@ -4,5 +4,6 @@
   "globe.label": "3D globe",
   "globe.noToken": "No Cesium ion token configured: showing low-resolution offline imagery without terrain. See README → Setup.",
   "panel.comingSoon": "Trek selection, flythrough and planning tools are being built. See the project milestones on GitHub.",
-  "disclaimer.medical": "Safety information in this app is general guidance only, not medical advice. Consult a qualified health professional and experienced local guides before trekking at altitude."
+  "disclaimer.medical": "Safety information in this app is general guidance only, not medical advice. Consult a qualified health professional and experienced local guides before trekking at altitude.",
+  "credits.osm": "© OpenStreetMap contributors"
 }

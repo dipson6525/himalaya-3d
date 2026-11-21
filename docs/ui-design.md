@@ -16,7 +16,7 @@ and tablet widths. Wireframes are low-fidelity: boxes and labels only, no real d
 3. **Data credits stay on the map** (NFR5), in Cesium's own credit area at the bottom-left of
    the globe:
    - Cesium ion logo and "Data attribution" link (Cesium adds these itself);
-   - "© OpenStreetMap contributors" whenever a route is shown;
+   - "© OpenStreetMap contributors", always (every trail comes from OSM; added in #14);
    - "Earthquake data: USGS" while the earthquake layer is on;
    - "Weather data by Open-Meteo.com" while weather is shown, and again directly under any
      weather values in the side panel.

@@ -13,6 +13,7 @@ add the reviewer's name, and fix `app/src/i18n/ne.json` if needed.
 | `globe.label` | 3D globe | ३डी ग्लोब | Needs review | |
 | `globe.noToken` | No Cesium ion token configured: … | Cesium ion टोकन मिलाइएको छैन: … | Needs review | |
 | `panel.comingSoon` | Trek selection, flythrough and planning tools are being built. … | पदयात्रा छनोट, उडान दृश्य (flythrough) र योजना उपकरणहरू बन्दैछन्। … | Needs review | |
+| `credits.osm` | © OpenStreetMap contributors | © OpenStreetMap contributors (kept in English) | Needs review: does the OSMF Attribution Guideline allow a Nepali wording? (TODO(team): verify) | |
 | `disclaimer.medical` | Safety information in this app is general guidance only, not medical advice. … | यस एपको सुरक्षा जानकारी सामान्य मार्गदर्शन मात्र हो, चिकित्सा सल्लाह होइन। … | Needs review (safety wording — high priority) | |
 
 Full text of each string is in `app/src/i18n/en.json` and `app/src/i18n/ne.json`.
