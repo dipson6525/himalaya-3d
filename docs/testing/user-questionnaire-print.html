@@ -1,0 +1,346 @@
+<!doctype html>
+<!--
+  user-questionnaire-print.html — printable A4 version of docs/testing/user-questionnaire.md.
+  Owner: Dipson Gurung. Issue #31. Open in a browser and print (one copy per participant).
+  Keep the wording identical to the Markdown version.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Himalaya 3D — user questionnaire</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+      body {
+        font-family: system-ui, 'Segoe UI', sans-serif;
+        font-size: 10.5pt;
+        color: #000;
+        background: #fff;
+        max-width: 180mm;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 15pt;
+        margin: 0 0 2mm;
+      }
+      h2 {
+        font-size: 11.5pt;
+        margin: 5mm 0 2mm;
+        border-bottom: 1px solid #000;
+      }
+      p {
+        margin: 1.5mm 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #555;
+        padding: 1.2mm 1.5mm;
+        vertical-align: top;
+      }
+      th.scale,
+      td.scale {
+        width: 8mm;
+        text-align: center;
+      }
+      .box {
+        display: inline-block;
+        width: 3.2mm;
+        height: 3.2mm;
+        border: 1px solid #000;
+        vertical-align: middle;
+      }
+      .lines {
+        border-bottom: 1px solid #999;
+        height: 7mm;
+      }
+      .small {
+        font-size: 8.5pt;
+        color: #333;
+      }
+      .header-row td {
+        border: none;
+        padding: 0 0 1mm;
+      }
+      .page-break {
+        break-before: page;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Himalaya 3D — user questionnaire</h1>
+    <table>
+      <tr class="header-row">
+        <td>Participant ID: ________</td>
+        <td>Date: ____________</td>
+        <td>Tester: ____________</td>
+      </tr>
+    </table>
+    <p class="small">
+      This is a student project at Kathmandu University. We are testing the website, not you. It
+      takes about 15 minutes. You can stop at any time. Your answers are recorded under a number,
+      not your name, and used only in our project report.
+    </p>
+
+    <h2>About you</h2>
+    <p>
+      Have you trekked in Nepal above 3,000 m before? <span class="box"></span> Yes
+      <span class="box"></span> No
+    </p>
+    <p>
+      How often do you use maps or 3D globes (Google Maps, Google Earth, ...)?
+      <span class="box"></span> Rarely <span class="box"></span> Sometimes
+      <span class="box"></span> Often
+    </p>
+
+    <h2>System Usability Scale</h2>
+    <p class="small">1 = strongly disagree, 5 = strongly agree. Tick one box per line.</p>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Statement</th>
+        <th class="scale">1</th>
+        <th class="scale">2</th>
+        <th class="scale">3</th>
+        <th class="scale">4</th>
+        <th class="scale">5</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>I think that I would like to use this system frequently.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>I found the system unnecessarily complex.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>I thought the system was easy to use.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>
+          I think that I would need the support of a technical person to be able to use this
+          system.
+        </td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>I found the various functions in this system were well integrated.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>I thought there was too much inconsistency in this system.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>I would imagine that most people would learn to use this system very quickly.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>I found the system very cumbersome to use.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>I felt very confident using the system.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>I needed to learn a lot of things before I could get going with this system.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+    </table>
+    <p class="small">
+      SUS: Brooke, J. (1996). SUS: A "quick and dirty" usability scale. In
+      <i>Usability Evaluation in Industry</i>, 189–194. Taylor &amp; Francis.
+    </p>
+
+    <h2>About Himalaya 3D</h2>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Statement</th>
+        <th class="scale">1</th>
+        <th class="scale">2</th>
+        <th class="scale">3</th>
+        <th class="scale">4</th>
+        <th class="scale">5</th>
+      </tr>
+      <tr>
+        <td>H1</td>
+        <td>Seeing the trek in 3D helped me understand how steep it is.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>H2</td>
+        <td>The elevation profile was easy to read.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>H3</td>
+        <td>I understood why the itinerary checker warned about a day.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>H4</td>
+        <td>It was clear that the safety information is general guidance, not medical advice.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>H5</td>
+        <td>The earthquake and weather layers were useful.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+      <tr>
+        <td>H6</td>
+        <td>(If you used Nepali) The Nepali text was clear and natural.</td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+        <td class="scale"><span class="box"></span></td>
+      </tr>
+    </table>
+
+    <h2 class="page-break">Your thoughts</h2>
+    <p>1. What did you find most useful?</p>
+    <div class="lines"></div>
+    <div class="lines"></div>
+    <p>2. What was confusing or hard to find?</p>
+    <div class="lines"></div>
+    <div class="lines"></div>
+    <p>3. What would you add or change?</p>
+    <div class="lines"></div>
+    <div class="lines"></div>
+    <p>4. Would you use this to plan a real trek? Why or why not?</p>
+    <div class="lines"></div>
+    <div class="lines"></div>
+
+    <h2>Tasks (filled in by the tester)</h2>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Task</th>
+        <th>Alone / with help / not done</th>
+        <th>Time</th>
+      </tr>
+      <tr>
+        <td>T1</td>
+        <td>Find the Everest Base Camp trek and show it on the map</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T2</td>
+        <td>Find the altitude of one overnight stop and say where the number comes from</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T3</td>
+        <td>Play the flythrough, pause it, and jump to day 3</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T4</td>
+        <td>Read the total ascent of the trek from the elevation profile</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T5</td>
+        <td>Change the itinerary so a warning disappears (for example, add a rest day)</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T6</td>
+        <td>Turn on the earthquake layer and say what one circle means</td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>T7</td>
+        <td>Switch the interface to Nepali and back</td>
+        <td></td>
+        <td></td>
+      </tr>
+    </table>
+  </body>
+</html>
