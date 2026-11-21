@@ -5,6 +5,31 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · Repository housekeeping and proposal alignment
+
+**Done**
+
+- **Contributors (ADR-020):** `main` replaced by the same history without AI co-author lines and
+  with the laptop's e-mail typo fixed (no force-push: new branch + GitHub branch rename). Checked:
+  identical file tree, same 11 commits, 0 Claude lines; contributors API now lists `dipson6525`
+  only. Old history kept in `archive/old-main-with-claude`.
+- **Collaborators:** Unique-Ghimire and sparshgorkhali5-wq invited with write access (Q1).
+- **PRs:** #38–#40 were closed by GitHub during the swap and re-opened as #41 (schema), #42 (UI
+  design) and #43 (pipeline); all three merged after green CI under ADR-021. Issues #6, #7 and #8
+  are closed. #42 needed `main` merged in (append-only conflicts in four docs files, both sides
+  kept).
+- **Proposal alignment (ADR-022):** read the submitted proposal; FRs renumbered to its Table 4.1
+  across docs, code headers and issues; NFR11 (ease of use) added; GDAL and "daily stages"
+  differences recorded in `docs/requirements.md` for the final report.
+
+**Test evidence:** after merging main into the UI branch: `pytest` 111 passed, 1 skipped;
+`npm run lint` clean; `npm run typecheck` clean; Vitest 5 passed. CI green on #41, #42, #43.
+
+**TEAM TODO:** accept the GitHub invitations; set `CESIUM_ION_TOKEN` (Q2, still missing);
+answer Q13–Q15.
+
+---
+
 ## 2026-11-21 · M2 #8 Data-prep pipeline (owner: Unique)
 
 **Done (for Unique to review)**

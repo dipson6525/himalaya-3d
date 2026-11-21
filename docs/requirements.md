@@ -2,8 +2,13 @@
 
 KU COMP 206 · Owner of this document: Dipson Gurung · Issue #3
 
-> TODO(team): verify that the FR numbering below matches the numbering in the proposal you
-> submitted. If it differs, renumber here and in the GitHub issues so the report stays consistent.
+The FR numbers and wording follow **Table 4.1 of the submitted proposal** (19 November 2026), so
+the code, the issues and the final report all use the same numbers. Each row adds what we will
+build and how we will test it.
+
+> Renumbered on 2026-11-21. The first draft split "routes" and "stops" into FR2 and FR3, which
+> shifted the later numbers by one. Old → new: FR3 → FR2, FR4 → FR3, FR5 → FR4,
+> FR6 → FR5 (checker) and FR6 (editable itinerary).
 
 ## Purpose
 
@@ -19,17 +24,17 @@ general acclimatization check, and see live earthquake and weather information.
 
 ## Functional requirements
 
-| ID | Requirement | Owner | Milestone | How we will test it |
-| --- | --- | --- | --- | --- |
-| FR1 | Show an interactive 3D globe centred on Nepal with real terrain and imagery; user can rotate, zoom and tilt. | Sparsh | M3 | Playwright: canvas renders, camera starts over Nepal; manual check of controls |
-| FR2 | Show at least 4 trekking routes (Everest Base Camp, Annapurna Circuit, Langtang Valley, + one team choice) as lines clamped to the terrain; user selects a route. | Unique (data), Sparsh (drawing), Dipson (selector) | M2–M3 | pytest validates GeoJSON; Playwright selects each route |
-| FR3 | Show overnight stops as markers; clicking one shows name (EN/NE), altitude with source, day number and description. | Unique (content), Sparsh (popups) | M2–M3 | Playwright clicks a stop and reads the popup |
-| FR4 | Animated flythrough along the selected route at constant ground speed with play, pause, speed and jump-to-day controls. | Sparsh | M4 | Vitest for distance/spline maths; Playwright for controls |
-| FR5 | Elevation profile chart of the route (total ascent, total descent, highest point) linked both ways with a marker on the map. | Dipson | M4 | Vitest for ascent/descent maths; Playwright hover test |
-| FR6 | Editable day-by-day itinerary with an acclimatization checker that flags days that break the Wilderness Medical Society guidance, with a visible "not medical advice" disclaimer. | Unique | M5 | Vitest test matrix incl. exactly 3000 m / exactly 500 m; Playwright flag test |
-| FR7 | Live layers: recent earthquakes (USGS) sized/coloured by magnitude, and current + forecast weather (Open-Meteo) at overnight stops, with offline/error states. | Dipson | M6 | Vitest for mapping logic; Playwright with mocked network |
-| FR8 | Date/time slider that moves the sun (globe lighting) and previews sunrise/sunset at a selected stop. | Dipson | M6 | Playwright moves slider; manual visual check |
-| FR9 | Full English/Nepali interface toggle; every UI string exists in both languages. | Dipson | M6 | Vitest key-parity test (exists since M0); Playwright language switch |
+| ID | Requirement (proposal Table 4.1) | What we build | Owner | Milestone | How we will test it |
+| --- | --- | --- | --- | --- | --- |
+| FR1 | The system shall display Nepal in 3D with terrain and satellite imagery, and allow rotating, zooming and tilting. | Cesium globe centred on Nepal with World Terrain and ion imagery. | Sparsh | M3 | Playwright: canvas renders, camera starts over Nepal; manual check of controls |
+| FR2 | The user shall be able to select a trek and see its route, stops and daily stages on the map. | At least 4 treks (Everest Base Camp, Annapurna Circuit, Langtang Valley + one team choice) as lines clamped to the terrain; stop markers whose popup shows name (EN/NE), altitude with source, day and description; each day's stage (trail between consecutive stops) highlightable. | Unique (data), Sparsh (drawing), Dipson (selector) | M2–M3 | pytest validates every route file; Playwright selects each trek and clicks a stop |
+| FR3 | The system shall play an animated flythrough of the selected route with play, pause, speed and day controls. | Catmull–Rom camera path at constant ground speed, smoothed heading. | Sparsh | M4 | Vitest for distance/spline maths; Playwright for the controls |
+| FR4 | The system shall show an elevation profile linked to the position on the 3D map. | Chart.js profile sampled about every 50 m, overnight stops marked, total ascent / descent / highest point; hover moves a map marker and the flythrough position shows on the chart. | Dipson | M4 | Vitest for ascent/descent maths; Playwright hover test |
+| FR5 | The system shall check an itinerary against acclimatization guidelines and highlight unsafe days. | WMS rule (Luks et al. 2019, 2024): flag a day above 3,000 m that sleeps more than 500 m higher than the night before, and more than three consecutive nights of higher sleeping above 3,000 m without a rest day; "not medical advice" disclaimer. | Unique | M5 | Vitest test matrix incl. exactly 3,000 m and exactly 500 m |
+| FR6 | The user shall be able to edit an itinerary and see the updated check immediately. | Add, remove and move days, change the sleeping stop; warnings update on every change. | Unique | M5 | Playwright: edit a day, the warning appears or disappears |
+| FR7 | The system shall show recent earthquakes and the weather at overnight stops. | USGS earthquakes sized/coloured by magnitude; Open-Meteo current + forecast at stops; offline/error states. | Dipson | M6 | Vitest for mapping logic; Playwright with mocked network |
+| FR8 | The user shall be able to set the date and time to view the position of the sun. | Date/time slider driving globe lighting; sunrise/sunset preview at a stop. | Dipson | M6 | Playwright moves slider; manual visual check |
+| FR9 | The interface shall be available in Nepali and English. | Language toggle; every UI string in `en.json` and `ne.json`. | Dipson | M6 | Vitest key-parity test (since M0); Playwright language switch |
 
 ## Non-functional requirements
 
@@ -45,6 +50,19 @@ general acclimatization check, and see live earthquake and weather information.
 | NFR8 | No secrets in the repository; the production Cesium token is restricted to the Pages URL. | `.gitignore`, CI secret, ion Allowed-URLs setting |
 | NFR9 | Data honesty: every altitude cites a published source; disagreements > 50 m are flagged. | `data/routes/route-sources.md`, pytest schema check |
 | NFR10 | Maintainability: TypeScript strict, lint + typecheck + tests in CI, header comment per file, doc comment per non-trivial function. | CI workflow; code-reviewer subagent |
+| NFR11 | Easy to use for people with no experience of 3D software (proposal, section 4.0.1). | The 10+ user questionnaire (#31), filled in by real users |
+
+NFR1–NFR4, NFR5, the safety-labelling part of NFR6 and NFR11 come from the proposal's
+non-functional requirements; NFR7–NFR10 are the team's own engineering rules.
+
+## Differences from the proposal (for the final report)
+
+- **GDAL:** the proposal lists Python with gpxpy and GDAL for route preparation. GDAL does not
+  install cleanly on Windows, so the pipeline uses gpxpy, shapely and pyproj instead (ADR-006,
+  ADR-019).
+- **Daily stages:** the proposal says the scripts will "split them into daily stages". We store
+  one trail line and the overnight stops with their day numbers; each day's stage is the part of
+  the trail between two consecutive stops, worked out in the app (#15) instead of stored twice.
 
 ## Out of scope
 

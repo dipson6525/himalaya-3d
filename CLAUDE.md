@@ -7,6 +7,7 @@ Static web app: 3D Nepal (CesiumJS) + trek planning. No custom server. Deployed 
 - Code must be explainable by a 2nd-year student: simple > clever, header comment per file, doc comment per function.
 - Safety features are general guidance, NOT medical advice — disclaimer always visible.
 - Feature PRs are reviewed and merged by the owning student; don't self-merge unless told.
+  (Told 2026-11-21: while the repo owner is away, merge after green CI + code review, ADR-021.)
 
 ## Ownership (use as commit scope + PR label)
 - Unique: data-prep/, data/routes/, app/src/lib/acclim/, app/src/features/acclimatization/, trek content

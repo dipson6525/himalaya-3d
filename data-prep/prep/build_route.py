@@ -1,4 +1,4 @@
-"""Build one route file in data/routes/ from a route spec (owner: Unique Ghimire). FR2, FR3.
+"""Build one route file in data/routes/ from a route spec (owner: Unique Ghimire). FR2.
 
 A route spec (data-prep/route-specs/<route-id>.toml) says which OpenStreetMap ways make up the
 trail and lists the overnight stops with their cited altitudes. This module turns it into

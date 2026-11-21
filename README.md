@@ -16,10 +16,10 @@ Computer Science and Engineering, Kathmandu University · Coordinator: Suman Shr
 | | Feature | Status |
 | --- | --- | --- |
 | FR1 | 3D globe of Nepal with real terrain | Scaffold (M0) → M3 |
-| FR2–FR3 | Four trekking routes with cited stop altitudes | M2–M3 |
-| FR4 | Animated flythrough | M4 |
-| FR5 | Elevation profile linked to the map | M4 |
-| FR6 | Itinerary planner + acclimatization checker | M5 |
+| FR2 | Four trekking routes with cited stop altitudes | M2–M3 |
+| FR3 | Animated flythrough | M4 |
+| FR4 | Elevation profile linked to the map | M4 |
+| FR5–FR6 | Itinerary planner + acclimatization checker | M5 |
 | FR7 | Live earthquakes (USGS) + weather (Open-Meteo) | M6 |
 | FR8 | Sun position / time-of-day slider | M6 |
 | FR9 | English / Nepali interface | Strings since M0, toggle in M6 |
@@ -94,7 +94,7 @@ docs/           Requirements, architecture, decisions, viva notes, progress log
 | Dipson Gurung | 041055-25 | UI, i18n, elevation profile, live layers, documentation |
 
 How we work: one branch + PR per issue (`<member>/<topic>`), Conventional Commits, the owning
-student reviews and merges. See [`CLAUDE.md`](CLAUDE.md) and [`docs/PROGRESS.md`](docs/PROGRESS.md).
+student reviews (see ADR-021 for merges while the repo owner is away). See [`CLAUDE.md`](CLAUDE.md) and [`docs/PROGRESS.md`](docs/PROGRESS.md).
 AI assistance is disclosed in [`docs/AI_USAGE.md`](docs/AI_USAGE.md).
 
 ## Data credits & licences

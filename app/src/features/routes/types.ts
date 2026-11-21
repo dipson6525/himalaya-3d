@@ -1,6 +1,6 @@
 /**
  * types.ts — TypeScript types (and two type guards) for a route file in data/routes/*.geojson.
- * Owner: Unique Ghimire (schema), used by Sparsh Gorkhali (drawing, M3). Related FR: FR2, FR3.
+ * Owner: Unique Ghimire (schema), used by Sparsh Gorkhali (drawing, M3). Related FR: FR2.
  *
  * This mirrors docs/data-schema.md, which the Python validator (data-prep/prep/schema.py)
  * enforces in CI. TypeScript cannot check JSON at runtime, so these types describe files that
