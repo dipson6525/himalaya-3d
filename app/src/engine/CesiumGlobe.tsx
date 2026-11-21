@@ -8,8 +8,17 @@
  * Without that, every remount or hot-reload would leak a WebGL context until the
  * browser refuses to create more.
  *
- * M0 scope: prove that Cesium loads (workers, assets, token) locally and on GitHub Pages.
- * Nepal-centred camera, routes and stop markers come in M3 (issues #14 and #15).
+ * After creating the Viewer we (issue #14):
+ *   - point the camera at Nepal from the south (camera.ts, numbers in nepalView.ts);
+ *   - make the home button come back to that view;
+ *   - add the OpenStreetMap credit next to Cesium's own credits (credits.ts).
+ *
+ * Request-render mode: by default Cesium redraws the scene about 60 times a second even when
+ * nothing moves, which keeps the GPU busy and drains laptop batteries. With
+ * requestRenderMode, Cesium redraws only when something changes (camera moved, a tile loaded,
+ * an entity added). Code that changes the scene in another way must call
+ * viewer.scene.requestRender(). maximumRenderTimeChange: Infinity means "the passing of time
+ * alone is never a reason to redraw" (we have no clock animation yet; #28 will revisit this).
  */
 import {
   ImageryLayer,
@@ -20,7 +29,9 @@ import {
 } from 'cesium';
 import { useEffect, useRef } from 'react';
 import { t } from '../i18n';
+import { makeHomeButtonShowNepal, viewNepal } from './camera';
 import { hasCesiumToken } from './cesiumSetup';
+import { addMapDataCredits } from './credits';
 
 /**
  * Build the Viewer options.
@@ -39,6 +50,8 @@ function buildViewerOptions(): Viewer.ConstructorOptions {
     sceneModePicker: false,
     fullscreenButton: false,
     navigationInstructionsInitiallyVisible: false, // the "?" button still shows them
+    requestRenderMode: true,
+    maximumRenderTimeChange: Infinity,
   };
 
   if (hasCesiumToken) {
@@ -60,8 +73,12 @@ export function CesiumGlobe() {
     if (!container) return;
 
     let viewer: Viewer | undefined;
+    let removeHomeButtonHandler = () => {};
     try {
       viewer = new Viewer(container, buildViewerOptions());
+      viewNepal(viewer);
+      addMapDataCredits(viewer);
+      removeHomeButtonHandler = makeHomeButtonShowNepal(viewer);
     } catch (error) {
       // Cesium has already drawn its own error panel (e.g. "WebGL is not supported")
       // inside the container, so the user sees what went wrong. We just log it.
@@ -69,6 +86,7 @@ export function CesiumGlobe() {
     }
 
     return () => {
+      removeHomeButtonHandler();
       viewer?.destroy();
     };
   }, []);

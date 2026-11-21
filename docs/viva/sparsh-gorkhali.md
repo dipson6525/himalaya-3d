@@ -17,12 +17,17 @@ in M7 you lead performance measurement and testing.
 | --- | --- | --- |
 | `app/vite.config.ts` | Base path `/himalaya-3d/`, copies Cesium's static files, `envDir` = project root | NFR7 |
 | `app/src/engine/cesiumSetup.ts` | Sets `window.CESIUM_BASE_URL` and the ion token | FR1 |
-| `app/src/engine/CesiumGlobe.tsx` | Creates/destroys the one Cesium Viewer; offline fallback without a token | FR1 |
+| `app/src/engine/CesiumGlobe.tsx` | Creates/destroys the one Cesium Viewer; offline fallback without a token; request-render mode | FR1 |
+| `app/src/engine/nepalView.ts` | The start view as plain numbers + `lookAtPoint` maths (no Cesium) | FR1 |
+| `app/src/engine/nepalView.test.ts` | Checks the start view looks at Nepal (worked numbers in comments) | FR1 |
+| `app/src/engine/camera.ts` | Nepal as Cesium's default view; `viewNepal`; home button flies back to Nepal | FR1 |
+| `app/src/engine/credits.ts` | OpenStreetMap credit shown on the map next to Cesium's | NFR5 |
 | `app/playwright.config.ts` | Runs e2e tests against the production build under `/himalaya-3d/` | all |
 | `app/e2e/smoke.spec.ts` | Smoke test: app loads, canvas renders, credits + disclaimer, no 404s | FR1, NFR5–6 |
 | `.github/workflows/deploy.yml` | Builds with the token secret and publishes to Pages | NFR7 |
 
-Coming next: `app/src/lib/geo/` (haversine, cumulative distance — #18), flythrough (#19, #20).
+Coming next: route lines and stop markers (#15), `app/src/lib/geo/` (haversine, cumulative
+distance — #18), flythrough (#19, #20).
 
 ## Module walkthroughs
 
@@ -68,6 +73,68 @@ imagery; **without**, the low-resolution NaturalEarthII image bundled in the ces
 no terrain. Why: CI runs tests without secrets, and a new teammate without a token still sees a
 working app plus a clear notice.
 
+### The start view over Nepal (`nepalView.ts`, `camera.ts`, issue #14)
+
+**What happens at start-up.**
+
+```
+CesiumGlobe.tsx: new Viewer(...)
+   ├─ viewNepal(viewer)                 camera.setView to NEPAL_START_VIEW
+   ├─ addMapDataCredits(viewer)         "© OpenStreetMap contributors" on screen
+   └─ makeHomeButtonShowNepal(viewer)   house button → fly back to the start view
+cleanup: remove the home-button listener, then viewer.destroy()
+```
+
+**Why split `nepalView.ts` (numbers) from `camera.ts` (Cesium calls)?** Importing Cesium in a
+unit test needs a browser; plain numbers do not. So the part worth testing — "does the camera
+look at Nepal?" — lives in a file with no Cesium import and is tested with Vitest in Node.
+
+**The start view.** 450 km up at 84.1 °E, 22.8 °N (south of Nepal), heading 0° (north), pitch
+−35°. A side view shows the height of the mountains; a top-down view flattens them.
+
+**Where does the camera look? Two answers, both tested.**
+
+*Flat-earth estimate (`lookAtPoint`).* Height h, looking down at angle |pitch|: on flat ground the
+line of sight lands d = h / tan(|pitch|) away. Our numbers: d = 450 km / tan 35° = 450 / 0.700 ≈
+642.7 km north. One degree of latitude = 2π × 6,371 km / 360 ≈ 111.19 km, so 642.7 / 111.19 ≈
+5.78° → 22.8° + 5.78° ≈ **28.58 °N**.
+
+*Exact, on a round Earth (`lookAtPointOnSphere`).* The real ground curves AWAY below a flat plane
+(by about d² / 2R ≈ 32 km over 640 km), so the line of sight travels **farther** before it meets
+the ground. Put the Earth's centre at (0, 0) and the camera at (0, H) with H = R + h = 6,821 km.
+After travelling s along the ray the point is (s cos α, H − s sin α); it is on the ground when its
+distance from the centre is R:
+
+    s² − 2Hs·sin α + (H² − R²) = 0  →  s = H sin α − √(H² sin²α − (H² − R²))
+
+With α = 35°: H sin α ≈ 3,912.4 km, H² − R² = 5,936,400 km², √(...) ≈ 3,061.1 km → s ≈ 851.3 km
+along the ray. The angle at the centre is δ = atan2(s cos α, H − s sin α) ≈ 0.10967 rad, so the
+ground distance is R·δ ≈ **698.7 km** and the aim point is 22.8° + 6.28° ≈ **29.08 °N**. If the
+square root's inside is negative, the ray misses the Earth (the camera looks past the horizon) and
+the function throws. Both functions also refuse a pitch of 0° or more (not looking down).
+
+**How the view was chosen.** By screenshots of the real build: a camera 0.5° further north (exact
+aim about 29.58 °N) showed mostly the Tibetan plateau; this view centres Nepal's hills and the
+Himalayan crest (`docs/screenshots/m3-nepal-start-view.png`, ADR-023).
+
+**The home button.** Cesium's house button normally flies to the whole Earth. Its command raises
+`beforeExecute` first; our listener sets `info.cancel = true` (Cesium then skips its own flight)
+and calls `viewNepal(viewer, 1.5)` to fly back over 1.5 s. The listener is removed in cleanup.
+
+**Request-render mode.** Normally Cesium draws about 60 frames a second even when nothing moves.
+With `requestRenderMode: true` it draws only when something changes (camera, tiles, entities).
+`maximumRenderTimeChange: Infinity` says time passing alone is no reason to redraw. Anything that
+changes the scene behind Cesium's back must call `viewer.scene.requestRender()`. Cesium notices
+some changes by itself: every frame it checks whether the camera moved (so `setView`, `flyTo` and
+mouse dragging need no help), and tile loads and window resizes ask for a frame too. The credit
+area only updates when a frame is drawn, so the live layers must call `requestRender()` after
+adding a credit. How much the mode helps is measured by the team (#29), not assumed.
+
+**Credits.** `new Credit(html, true)`: the `true` means "show on screen"; otherwise the credit
+appears only inside Cesium's "Data attribution" pop-up. The text comes from the i18n files
+(`credits.osm`, English in both for now). The e2e test checks the OSM credit text is in the
+on-screen credit area.
+
 ## Key concepts from first principles
 
 - **Static site**: just files; the server does no computation. → Free hosting, but no secrets.
@@ -77,8 +144,13 @@ working app plus a clear notice.
   On CI machines without a GPU, Chromium uses *SwiftShader* (a software GPU) — that is why the
   Playwright config passes `--use-angle=swiftshader`.
 - **Terrain vs imagery**: terrain is the 3D *shape* (heights); imagery is the *picture* draped on it.
+- **Heading and pitch**: heading = compass direction the camera faces (0° north, 90° east);
+  pitch = up/down (0° level with the horizon, −90° straight down). Cesium wants radians:
+  radians = degrees × π / 180, done by `CesiumMath.toRadians`.
+- **Why lines of longitude need cos(latitude)**: meridians meet at the poles, so one degree of
+  longitude is 111.19 km × cos(latitude) wide; at 28 °N that is about 98.2 km.
 
-## Likely viva questions (M0 part — more added with each feature)
+## Likely viva questions
 
 1. **Why does the site need `base: '/himalaya-3d/'`?** — Pages serves from a sub-path; without it
    every asset URL points at the domain root and 404s.
@@ -93,21 +165,59 @@ working app plus a clear notice.
 6. **How does the app behave with no token?** — Offline imagery, no terrain, visible notice.
 7. **How do you know the deploy works?** — The e2e test serves the production build under the
    same sub-path and fails on any 404; then the deploy workflow publishes the same build.
-8. **What is `requestRenderMode` and why will you turn it on?** — Cesium only redraws when
-   something changes instead of 60 times a second → less CPU/GPU, better battery (M3/M7).
-9. **What was hard in setup?** — Making Cesium's runtime files work under two different base paths.
-10. **What would you improve?** — Split Cesium into its own cached chunk; measure load time (#30).
+8. **What is `requestRenderMode` and why is it on?** — Cesium only redraws when something
+   changes instead of about 60 times a second, so the GPU rests while the user just looks. The
+   cost: code that changes the scene without Cesium noticing must call `scene.requestRender()`.
+9. **What was hard?** — TODO(Sparsh): answer from your own experience.
+10. **What would you improve?** — Split Cesium into its own cached chunk; measure load time (#30);
+    pick the start view for the screen's shape (a phone in portrait would crop Nepal's edges).
+11. **Where does the camera start and why there?** — 450 km up, south of Nepal, facing north, 35°
+    down: a side view shows the mountains' height; the exact aim point is about 29.08 °N.
+12. **How do you know where it looks without opening a browser?** — `lookAtPointOnSphere` solves
+    the ray–sphere equation; `nepalView.test.ts` checks the answer (and a loose box around Nepal).
+    The screenshot confirmed it visually.
+13. **Why do the flat and exact answers differ, and which way?** — The flat estimate ignores the
+    Earth's curve. The ground drops away about 32 km over 640 km, so the real line of sight lands
+    FARTHER: about 698.7 km instead of 642.7 km (29.08 °N instead of 28.58 °N).
+14. **How does the home button come back to Nepal?** — A `beforeExecute` listener cancels Cesium's
+    own flight and calls `viewNepal(viewer, 1.5)`; cleanup removes the listener.
+15. **Why `new Credit(html, true)`?** — `true` = show on screen; otherwise the credit is only in the
+    pop-up, and NFR5 needs credits visible on the map.
+16. **Why is there no `requestRender()` after moving the camera?** — Cesium checks every frame
+    whether the camera moved and redraws if it did, even in request-render mode. An earlier draft
+    had the call with a wrong comment; the code review caught it.
+17. **Which parts did the AI tool write, and how did you check them?** — See "AI use in this
+    part"; answer in your own words after doing the exercises.
 
 ## Prove you understand it (do these by hand, no AI)
 
 1. Temporarily change `'cesium/'` to `'cesium-wrong/'` in `cesiumSetup.ts`, run `npm run e2e`,
    read the failure, explain it, then revert.
-2. Add `requestRenderMode: true` to the Viewer options and explain when you must now call
-   `viewer.scene.requestRender()`.
+2. Measure what request-render mode does: open the app, leave it still for a minute and note
+   the GPU use in Windows Task Manager; then set `requestRenderMode: false`, rebuild, and measure
+   again. Explain the difference, then change it back.
 3. Without looking, draw the sequence: React render → effect → `new Viewer` → unmount → cleanup.
 4. Explain to a teammate why `navigationInstructionsInitiallyVisible: false` does not remove the
    help button.
+5. Work out by hand where the camera would look with pitch −25° instead of −35°, with the flat
+   formula and then the exact one. Add a test case for it in `nepalView.test.ts`. Is the aim point
+   still inside the box around Nepal? Which answer is farther, and why?
+6. Change the start view to face north-east (heading 45°) and use `lookAtPoint` to predict which
+   way the aim point moves; check with a screenshot (`UPDATE_SCREENSHOTS=1 npm run e2e`), then revert.
+
+## AI use in this part
+
+- **Issue #14 (2026-11-21):** Claude Code wrote `nepalView.ts` (+ test), `camera.ts`,
+  `credits.ts`, the `CesiumGlobe.tsx` changes, the e2e credit check, ADR-023 and this section. It
+  chose the start view by comparing two screenshots from the real build, and ESLint caught a
+  hook-naming mistake that was fixed. A code-reviewer subagent then found real errors: the notes had the Earth's curvature the wrong way round, the cos(latitude) term was untested, a pitch of 0° or more was not rejected, a comment about `requestRender()` was wrong, and the credit text was hard-coded. All were fixed and `lookAtPointOnSphere` (exact) was added, with tests.
+- **What you must still do:** read the four engine files, run the tests and the app yourself,
+  and do exercises 2, 5 and 6 by hand.
 
 ## Changelog
 
 - 2026-11-19 — M0: base path, Cesium static files, Viewer lifecycle, smoke test.
+- 2026-11-21 — M3 #14: start view, `lookAtPoint` worked example, home button, request-render
+  mode, credits; questions 8–17 (Q9 now left for you to answer); exercises 2, 5, 6; AI use.
+- 2026-11-21 — after code review: exact round-Earth aim point (29.08 °N, farther than the flat
+  28.58 °N), corrected curvature direction and render-mode notes, Q11–Q13 and Q16 rewritten.
