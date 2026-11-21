@@ -30,7 +30,7 @@ import shapely
 from shapely.geometry import LineString, MultiLineString, Point
 from shapely.ops import linemerge
 
-from prep import overpass, paths, schema
+from prep import overpass, paths, route_index, schema
 
 # Default Douglas-Peucker tolerance in metres: every point of the simplified trail stays within
 # this distance of the OSM line. See ADR-019 for why 5 m.
@@ -361,6 +361,7 @@ def build_route(
 
     out_path = routes_dir / f"{spec['id']}.geojson"
     out_path.write_text(to_geojson_text(collection), encoding="utf-8", newline="\n")
+    route_index.write_index(routes_dir)  # keep data/routes/index.json in step with the files
     return {
         "file": out_path,
         "ways": len(ways),
