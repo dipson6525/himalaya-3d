@@ -5,6 +5,23 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-21 · M4 #18 Geo maths library (owner: Sparsh)
+
+**Done**
+
+- `app/src/lib/geo/distance.ts`: `haversineM` (proposal equation 3.2, calculator-safe worked
+  example), `cumulativeDistancesM`, `locateDistance` (binary search from metres travelled to
+  segment and t; clamps at the ends; refuses NaN) and `pointOnSegment`. Pure TypeScript, used by
+  the flythrough (#19) and the elevation profile (#21).
+- 18 Vitest cases with hand-checkable values. Code review found an un-reproducible worked example
+  and three weak tests; fixed, and a mutation check then caught all five deliberate bugs.
+
+**Test evidence (local):** `npx vitest run src/lib/geo` → 18 passed; lint and typecheck clean.
+
+**TEAM TODO:** Sparsh: exercises 7–8; confirm the sphere-vs-ellipsoid error figure with a source.
+
+---
+
 ## 2026-11-21 · M5 #23 Acclimatization rules (owner: Unique) · M7 #31 testing templates
 
 **Done**

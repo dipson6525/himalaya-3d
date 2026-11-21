@@ -22,6 +22,8 @@ in M7 you lead performance measurement and testing.
 | `app/src/engine/nepalView.test.ts` | Checks the start view looks at Nepal (worked numbers in comments) | FR1 |
 | `app/src/engine/camera.ts` | Nepal as Cesium's default view; `viewNepal`; home button flies back to Nepal | FR1 |
 | `app/src/engine/credits.ts` | OpenStreetMap credit shown on the map next to Cesium's | NFR5 |
+| `app/src/lib/geo/distance.ts` | Haversine, cumulative distance, distance → (segment, t) lookup | FR3, FR4 |
+| `app/src/lib/geo/distance.test.ts` | Hand-checkable tests (1° = 111,194.9 m, πR/2, πR, uneven spacing) | FR3, FR4 |
 | `app/playwright.config.ts` | Runs e2e tests against the production build under `/himalaya-3d/` | all |
 | `app/e2e/smoke.spec.ts` | Smoke test: app loads, canvas renders, credits + disclaimer, no 404s | FR1, NFR5–6 |
 | `.github/workflows/deploy.yml` | Builds with the token secret and publishes to Pages | NFR7 |
@@ -135,6 +137,52 @@ appears only inside Cesium's "Data attribution" pop-up. The text comes from the 
 (`credits.osm`, English in both for now). The e2e test checks the OSM credit text is in the
 on-screen credit area.
 
+### Geo maths for the flythrough (`app/src/lib/geo/distance.ts`, issue #18)
+
+**What it is for.** The flythrough (#19) must move the camera at the same ground speed whatever
+the spacing of the trail's points, and the elevation profile (#21) needs "distance along the
+trail" for its x-axis. Both start from these pure functions (no Cesium, tested in Node).
+
+**Data flow.**
+
+```
+trail points [lon, lat] ──cumulativeDistancesM──► [0, d₀₁, d₀₁+d₁₂, ...]   (metres)
+"travelled s metres" + table ──locateDistance──► { segment i, t in [0, 1] }  (binary search)
+{ i, t } ──pointOnSegment──► [lon, lat] = p_i + t·(p_{i+1} − p_i)
+```
+
+**Haversine (proposal equation 3.2).** With φ = latitude, λ = longitude in radians, R = 6,371 km:
+
+    a = sin²(Δφ/2) + cos φ₁ · cos φ₂ · sin²(Δλ/2)
+    d = 2R · asin(√a)
+
+Worked example: one degree along the equator. Δφ = 0, Δλ = 1° = 0.0174533 rad, cos φ = 1,
+a = sin²(0.0087266) = 0.0000761524, √a = 0.0087265 (= sin 0.5°), so asin(√a) = 0.5° = 0.0087266
+rad and d = 2 × 6,371,000 × 0.0087266 ≈ **111,194.9 m**, which is 2πR / 360 as it should be.
+Calculator trap: asin of the *rounded* 0.0087266 gives 111,195.7 m — keep the digits. Why not Pythagoras on degrees? A degree of longitude is
+111.19 km × cos(latitude) long (about 98.2 km at 28 °N), so degrees are not the same length in
+every direction. `Math.min(1, a)` guards against rounding pushing a a hair above 1 (asin would give
+NaN; a safety net — in testing it never went above 1, so no test can prove the guard).
+
+**Cumulative distance and constant speed.** If the camera moved "one point per frame", it would
+rush along stretches where OSM has few points and crawl where it has many. Instead the flythrough
+keeps a distance s that grows by speed × time each frame, and asks "which segment contains s?".
+
+**Binary search (`locateDistance`).** The table is sorted (distances only grow), so we keep a
+range [low, high] with table[low] ≤ s < table[high] and halve it each step: about log₂ n steps,
+14 for 10,000 points, instead of up to 10,000. Then t = (s − table[i]) / (table[i+1] − table[i]).
+Distances before the start or after the end are clamped. Example from the tests: segments of 1°,
+3° and 1°; half-way (2.5°) is in the long middle segment at t = (2.5 − 1) / 3 = 0.5.
+
+**Limits.**
+- The Earth is treated as a sphere: against the real WGS84 ellipsoid the error is at most about
+  0.56% (about 0.34% north–south at 28 °N), figures computed in code review; TODO(team): confirm
+  with a published source for the report.
+- `locateDistance` refuses a distance that is not a finite number, so a NaN can never reach Cesium.
+- `pointOnSegment` interpolates lon/lat in a straight line; fine for trail segments of metres to
+  hundreds of metres, not for continents.
+- Heights are ignored: these are map distances, not the distance walked up and down hills.
+
 ## Key concepts from first principles
 
 - **Static site**: just files; the server does no computation. → Free hosting, but no secrets.
@@ -188,6 +236,16 @@ on-screen credit area.
     had the call with a wrong comment; the code review caught it.
 17. **Which parts did the AI tool write, and how did you check them?** — See "AI use in this
     part"; answer in your own words after doing the exercises.
+18. **Write the haversine formula and say what each symbol is.** — a = sin²(Δφ/2) + cos φ₁ cos φ₂
+    sin²(Δλ/2), d = 2R asin(√a); φ latitude, λ longitude, both in radians; R = 6,371 km.
+19. **Why not Pythagoras on latitude and longitude?** — A degree of longitude is 111.19 km × cos φ
+    long, so degrees are not the same length in every direction (98.2 km at 28 °N).
+20. **How does the flythrough keep a constant speed with uneven points?** — It keeps a distance s
+    that grows by speed × time, and finds the segment containing s in the cumulative table.
+21. **Why binary search?** — The table is sorted; halving the range each step needs about log₂ n
+    steps (14 for 10,000 points) instead of up to n.
+22. **What does locateDistance return at exactly a stop's distance, and past the end?** — The start
+    of the next segment (t = 0); past the end it is clamped to the last segment with t = 1.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -204,6 +262,10 @@ on-screen credit area.
    still inside the box around Nepal? Which answer is farther, and why?
 6. Change the start view to face north-east (heading 45°) and use `lookAtPoint` to predict which
    way the aim point moves; check with a screenshot (`UPDATE_SCREENSHOTS=1 npm run e2e`), then revert.
+7. Compute the haversine distance between [85, 27] and [85, 28] by hand (show a and √a), then
+   check it with a new test. Why is it the same as one degree along the equator?
+8. Add a test where the route has a single very long segment between many short ones, and check
+   that equal steps in distance still give equal steps on the ground.
 
 ## AI use in this part
 
@@ -211,8 +273,12 @@ on-screen credit area.
   `credits.ts`, the `CesiumGlobe.tsx` changes, the e2e credit check, ADR-023 and this section. It
   chose the start view by comparing two screenshots from the real build, and ESLint caught a
   hook-naming mistake that was fixed. A code-reviewer subagent then found real errors: the notes had the Earth's curvature the wrong way round, the cos(latitude) term was untested, a pitch of 0° or more was not rejected, a comment about `requestRender()` was wrong, and the credit text was hard-coded. All were fixed and `lookAtPointOnSphere` (exact) was added, with tests.
+- **Issue #18 (2026-11-21):** Claude Code wrote `distance.ts` and its tests. A code-reviewer
+  subagent found that the worked example did not reproduce on a calculator (rounding), that the
+  last segment and latitude interpolation were untested, and that a NaN distance slipped through;
+  all fixed, and a mutation check then caught five deliberate bugs.
 - **What you must still do:** read the four engine files, run the tests and the app yourself,
-  and do exercises 2, 5 and 6 by hand.
+  and do exercises 2 and 5–8 by hand.
 
 ## Changelog
 
@@ -221,3 +287,5 @@ on-screen credit area.
   mode, credits; questions 8–17 (Q9 now left for you to answer); exercises 2, 5, 6; AI use.
 - 2026-11-21 — after code review: exact round-Earth aim point (29.08 °N, farther than the flat
   28.58 °N), corrected curvature direction and render-mode notes, Q11–Q13 and Q16 rewritten.
+- 2026-11-21 — M4 #18: geo maths walkthrough (haversine with a calculator-safe worked example,
+  cumulative distance, binary search), limits, questions 18–22, exercises 7–8.
