@@ -78,9 +78,8 @@ working app plus a clear notice.
 **What happens at start-up.**
 
 ```
-cesiumSetup.ts ──setNepalAsDefaultView──► Camera.DEFAULT_VIEW_RECTANGLE = Nepal (before any Viewer)
 CesiumGlobe.tsx: new Viewer(...)
-   ├─ viewNepal(viewer)                 camera.setView to NEPAL_START_VIEW, then requestRender()
+   ├─ viewNepal(viewer)                 camera.setView to NEPAL_START_VIEW
    ├─ addMapDataCredits(viewer)         "© OpenStreetMap contributors" on screen
    └─ makeHomeButtonShowNepal(viewer)   house button → fly back to the start view
 cleanup: remove the home-button listener, then viewer.destroy()
@@ -93,17 +92,30 @@ look at Nepal?" — lives in a file with no Cesium import and is tested with Vit
 **The start view.** 450 km up at 84.1 °E, 22.8 °N (south of Nepal), heading 0° (north), pitch
 −35°. A side view shows the height of the mountains; a top-down view flattens them.
 
-**`lookAtPoint` (flat-earth approximation).** Where does the line of sight hit the ground?
-Height h, looking down at angle |pitch|: the horizontal distance is d = h / tan(|pitch|).
-Worked example with our numbers: d = 450 km / tan 35° = 450 / 0.700 ≈ 642.7 km north.
-One degree of latitude = 2π × 6,371 km / 360 ≈ 111.19 km, so 642.7 / 111.19 ≈ 5.78° →
-22.8° + 5.78° ≈ **28.58 °N**, inside Nepal (26.3–30.5 °N). The test checks exactly this.
-Limit: the real Earth curves away (about d² / 2R ≈ 32 km over 640 km), so the true point is a
-little nearer; good enough to check the view, never used to place data.
+**Where does the camera look? Two answers, both tested.**
 
-**How the view was chosen.** The first try aimed at 29.08 °N and the screenshot showed mostly the
-Tibetan plateau; moving the camera 0.5° south centred Nepal's hills and mountains
-(`docs/screenshots/m3-nepal-start-view.png`, ADR-023).
+*Flat-earth estimate (`lookAtPoint`).* Height h, looking down at angle |pitch|: on flat ground the
+line of sight lands d = h / tan(|pitch|) away. Our numbers: d = 450 km / tan 35° = 450 / 0.700 ≈
+642.7 km north. One degree of latitude = 2π × 6,371 km / 360 ≈ 111.19 km, so 642.7 / 111.19 ≈
+5.78° → 22.8° + 5.78° ≈ **28.58 °N**.
+
+*Exact, on a round Earth (`lookAtPointOnSphere`).* The real ground curves AWAY below a flat plane
+(by about d² / 2R ≈ 32 km over 640 km), so the line of sight travels **farther** before it meets
+the ground. Put the Earth's centre at (0, 0) and the camera at (0, H) with H = R + h = 6,821 km.
+After travelling s along the ray the point is (s cos α, H − s sin α); it is on the ground when its
+distance from the centre is R:
+
+    s² − 2Hs·sin α + (H² − R²) = 0  →  s = H sin α − √(H² sin²α − (H² − R²))
+
+With α = 35°: H sin α ≈ 3,912.4 km, H² − R² = 5,936,400 km², √(...) ≈ 3,061.1 km → s ≈ 851.3 km
+along the ray. The angle at the centre is δ = atan2(s cos α, H − s sin α) ≈ 0.10967 rad, so the
+ground distance is R·δ ≈ **698.7 km** and the aim point is 22.8° + 6.28° ≈ **29.08 °N**. If the
+square root's inside is negative, the ray misses the Earth (the camera looks past the horizon) and
+the function throws. Both functions also refuse a pitch of 0° or more (not looking down).
+
+**How the view was chosen.** By screenshots of the real build: a camera 0.5° further north (exact
+aim about 29.58 °N) showed mostly the Tibetan plateau; this view centres Nepal's hills and the
+Himalayan crest (`docs/screenshots/m3-nepal-start-view.png`, ADR-023).
 
 **The home button.** Cesium's house button normally flies to the whole Earth. Its command raises
 `beforeExecute` first; our listener sets `info.cancel = true` (Cesium then skips its own flight)
@@ -112,12 +124,16 @@ and calls `viewNepal(viewer, 1.5)` to fly back over 1.5 s. The listener is remov
 **Request-render mode.** Normally Cesium draws about 60 frames a second even when nothing moves.
 With `requestRenderMode: true` it draws only when something changes (camera, tiles, entities).
 `maximumRenderTimeChange: Infinity` says time passing alone is no reason to redraw. Anything that
-changes the scene behind Cesium's back must call `viewer.scene.requestRender()` — `viewNepal`
-does. How much this helps is measured by the team with the FPS overlay (#29), not assumed.
+changes the scene behind Cesium's back must call `viewer.scene.requestRender()`. Cesium notices
+some changes by itself: every frame it checks whether the camera moved (so `setView`, `flyTo` and
+mouse dragging need no help), and tile loads and window resizes ask for a frame too. The credit
+area only updates when a frame is drawn, so the live layers must call `requestRender()` after
+adding a credit. How much the mode helps is measured by the team (#29), not assumed.
 
 **Credits.** `new Credit(html, true)`: the `true` means "show on screen"; otherwise the credit
-appears only inside Cesium's "Data attribution" pop-up. The e2e test checks the OSM credit text
-is in the on-screen credit area.
+appears only inside Cesium's "Data attribution" pop-up. The text comes from the i18n files
+(`credits.osm`, English in both for now). The e2e test checks the OSM credit text is in the
+on-screen credit area.
 
 ## Key concepts from first principles
 
@@ -156,18 +172,20 @@ is in the on-screen credit area.
 10. **What would you improve?** — Split Cesium into its own cached chunk; measure load time (#30);
     pick the start view for the screen's shape (a phone in portrait would crop Nepal's edges).
 11. **Where does the camera start and why there?** — 450 km up, south of Nepal, facing north, 35°
-    down: a side view shows the mountains' height; the aim point is about 28.6 °N, inside Nepal.
-12. **How do you know it looks at Nepal without opening a browser?** — `lookAtPoint` computes the
-    aim point with d = h / tan(|pitch|); `nepalView.test.ts` checks it is inside Nepal's box.
-13. **Why is `lookAtPoint` only approximate?** — It treats the Earth as flat; over 640 km the curve
-    drops about 32 km, so the true aim point is a little nearer. Fine for a check, not for data.
+    down: a side view shows the mountains' height; the exact aim point is about 29.08 °N.
+12. **How do you know where it looks without opening a browser?** — `lookAtPointOnSphere` solves
+    the ray–sphere equation; `nepalView.test.ts` checks the answer (and a loose box around Nepal).
+    The screenshot confirmed it visually.
+13. **Why do the flat and exact answers differ, and which way?** — The flat estimate ignores the
+    Earth's curve. The ground drops away about 32 km over 640 km, so the real line of sight lands
+    FARTHER: about 698.7 km instead of 642.7 km (29.08 °N instead of 28.58 °N).
 14. **How does the home button come back to Nepal?** — A `beforeExecute` listener cancels Cesium's
     own flight and calls `viewNepal(viewer, 1.5)`; cleanup removes the listener.
 15. **Why `new Credit(html, true)`?** — `true` = show on screen; otherwise the credit is only in the
     pop-up, and NFR5 needs credits visible on the map.
-16. **Why is `setNepalAsDefaultView` not called `useNepalAsDefaultView`?** — In React, names that
-    start with `use` are hooks; ESLint's rules-of-hooks reported calling it at the top level. It
-    is a plain function, so the name now says what it does.
+16. **Why is there no `requestRender()` after moving the camera?** — Cesium checks every frame
+    whether the camera moved and redraws if it did, even in request-render mode. An earlier draft
+    had the call with a wrong comment; the code review caught it.
 17. **Which parts did the AI tool write, and how did you check them?** — See "AI use in this
     part"; answer in your own words after doing the exercises.
 
@@ -175,13 +193,15 @@ is in the on-screen credit area.
 
 1. Temporarily change `'cesium/'` to `'cesium-wrong/'` in `cesiumSetup.ts`, run `npm run e2e`,
    read the failure, explain it, then revert.
-2. Remove the `viewer.scene.requestRender()` line from `viewNepal`, rebuild, and press the home
-   button. Describe what you see (or don't), explain why, then put the line back.
+2. Measure what request-render mode does: open the app, leave it still for a minute and note
+   the GPU use in Windows Task Manager; then set `requestRenderMode: false`, rebuild, and measure
+   again. Explain the difference, then change it back.
 3. Without looking, draw the sequence: React render → effect → `new Viewer` → unmount → cleanup.
 4. Explain to a teammate why `navigationInstructionsInitiallyVisible: false` does not remove the
    help button.
-5. Work out by hand where the camera would look with pitch −25° instead of −35°, then add a test
-   case for it in `nepalView.test.ts`. Is the aim point still inside Nepal?
+5. Work out by hand where the camera would look with pitch −25° instead of −35°, with the flat
+   formula and then the exact one. Add a test case for it in `nepalView.test.ts`. Is the aim point
+   still inside the box around Nepal? Which answer is farther, and why?
 6. Change the start view to face north-east (heading 45°) and use `lookAtPoint` to predict which
    way the aim point moves; check with a screenshot (`UPDATE_SCREENSHOTS=1 npm run e2e`), then revert.
 
@@ -190,7 +210,7 @@ is in the on-screen credit area.
 - **Issue #14 (2026-11-21):** Claude Code wrote `nepalView.ts` (+ test), `camera.ts`,
   `credits.ts`, the `CesiumGlobe.tsx` changes, the e2e credit check, ADR-023 and this section. It
   chose the start view by comparing two screenshots from the real build, and ESLint caught a
-  hook-naming mistake that was fixed. A code-reviewer subagent reviewed the change before merging.
+  hook-naming mistake that was fixed. A code-reviewer subagent then found real errors: the notes had the Earth's curvature the wrong way round, the cos(latitude) term was untested, a pitch of 0° or more was not rejected, a comment about `requestRender()` was wrong, and the credit text was hard-coded. All were fixed and `lookAtPointOnSphere` (exact) was added, with tests.
 - **What you must still do:** read the four engine files, run the tests and the app yourself,
   and do exercises 2, 5 and 6 by hand.
 
@@ -199,3 +219,5 @@ is in the on-screen credit area.
 - 2026-11-19 — M0: base path, Cesium static files, Viewer lifecycle, smoke test.
 - 2026-11-21 — M3 #14: start view, `lookAtPoint` worked example, home button, request-render
   mode, credits; questions 8–17 (Q9 now left for you to answer); exercises 2, 5, 6; AI use.
+- 2026-11-21 — after code review: exact round-Earth aim point (29.08 °N, farther than the flat
+  28.58 °N), corrected curvature direction and render-mode notes, Q11–Q13 and Q16 rewritten.

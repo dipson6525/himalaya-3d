@@ -9,17 +9,20 @@ what the TEAM must do next, open questions.
 
 **Done**
 
-- Camera starts over Nepal (450 km up at 84.1 °E, 22.8 °N, facing north, 35° down; aim point
-  about 28.6 °N). The numbers live in `engine/nepalView.ts` with a unit-tested `lookAtPoint`;
-  the Cesium calls live in `engine/camera.ts`. The home button flies back to this view.
-- `requestRenderMode` on (ADR-023). The OpenStreetMap credit is shown on the map next to
-  Cesium's (`engine/credits.ts`), and the e2e test checks for it.
+- Camera starts over Nepal (450 km up at 84.1 °E, 22.8 °N, facing north, 35° down). Where it
+  looks is computed in `engine/nepalView.ts` two ways, both tested: flat-earth estimate about
+  28.58 °N, exact on a round Earth about 29.08 °N. The Cesium calls live in `engine/camera.ts`;
+  the home button flies back to this view.
+- `requestRenderMode` on (ADR-023). The OpenStreetMap credit (text from the i18n files) is shown
+  on the map next to Cesium's (`engine/credits.ts`), and the e2e test checks for it.
 - Screenshot from the real build with the token: `docs/screenshots/m3-nepal-start-view.png`
-  (the README now shows it). A first attempt aimed too far north (mostly Tibet), so the camera
-  was moved 0.5° south.
+  (the README now shows it). A first attempt 0.5° further north showed mostly Tibet.
+- Code review before the PR found that the notes had the Earth's curvature the wrong way round
+  (the exact aim point is farther, not nearer), that the cos(latitude) term was untested, that
+  pitch >= 0 was not rejected, and that the credit text was hard-coded; all fixed, with tests.
 
 **Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest
-11 passed (3 files); `npm run e2e` 1 passed, both with the token and with
+18 passed (3 files); `npm run e2e` 1 passed, both with the token and with
 `VITE_CESIUM_ION_TOKEN=` (the offline imagery CI uses).
 
 **TEAM TODO:** Sparsh: read the engine files and do exercises 2, 5 and 6. Set
