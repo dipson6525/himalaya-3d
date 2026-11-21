@@ -16,7 +16,7 @@ Computer Science and Engineering, Kathmandu University · Coordinator: Suman Shr
 | | Feature | Status |
 | --- | --- | --- |
 | FR1 | 3D globe of Nepal with real terrain | Scaffold (M0) → M3 |
-| FR2 | Four trekking routes with cited stop altitudes | M2–M3 |
+| FR2 | Four trekking routes with cited stop altitudes | Drawing works (M3, #15); route data pending (#9–#12) |
 | FR3 | Animated flythrough | M4 |
 | FR4 | Elevation profile linked to the map | M4 |
 | FR5–FR6 | Itinerary planner + acclimatization checker | M5 |
