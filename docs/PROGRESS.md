@@ -5,6 +5,34 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-22 · M4 #19 Flythrough camera (owner: Sparsh)
+
+**Done**
+
+- PR #52 (#49 daily stages) merged after green CI and code-review fixes (ADR-021).
+- `engine/flythrough/path.ts`: equal-interval resampling, safe flight heights from sampled
+  terrain, Cesium Catmull-Rom spline in ECEF, a distance lookup table for the curve (constant
+  ground speed, also around corners), camera pose behind/above/looking ahead, exponential
+  heading smoothing (ADR-028). 15 hand-checkable unit tests.
+- `FlythroughController` (plain class, one animation-frame loop, terrain sampled once, runtime
+  terrain guard, mouse off while playing) and `FlythroughLayer` (one controller per route).
+- Play / Pause button in the Trek tab (speed and jump-to-day are #20). Pressing a day pauses
+  the flythrough; another trek stops it.
+- Found while testing: Play pressed before World Terrain finished loading failed (Cesium leaves
+  the provider undefined until then) → `play()` waits for it; a disabled button lost keyboard
+  focus while preparing → `aria-disabled` instead.
+- Screenshot `docs/screenshots/m4-flythrough-synthetic.png` (synthetic route, real terrain).
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 114
+passed; `npm run e2e` 11 passed. Mutation checks, each made a test fail: removing the curve's
+distance table (unit test: steps 37.5–62.5 m instead of 50 m); removing "pause on day".
+
+**Team next**
+
+- Sparsh: play the flythrough on each real route once #9–#12 land; note whether speed, height
+  and smoothness feel right (TODO(team): verify), and measure FPS during the flythrough for the
+  NFR1 table (#29). Do exercises 14–16.
+
 ## 2026-11-22 · M3 #49 Daily stages (owner: Sparsh)
 
 **Done**

@@ -404,3 +404,40 @@ vertices would land at the wrong one).
 the wrong pass, because the nearest point wins. The pipeline keeps stops within 500 m of the
 trail, so the offset is small. TODO(team): check each real route's stages by eye when #9–#12
 add them.
+
+## ADR-028 · Flythrough: spline + distance table, controller outside React (Sparsh, 2026-11-22)
+
+**Context:** Issue #19 (FR3): the camera follows the route, behind and above the current point,
+looking slightly ahead, at a constant ground speed, with no jerky turns, never inside the
+terrain. ADR-018 / ui-design: per-frame values stay out of React; commands are method calls.
+**Decision:**
+- The trail is resampled at equal intervals of at most 100 m. Flight height at each sample =
+  the highest terrain within ±500 m (5 samples each side, `sampleTerrain` at level 11, sampled
+  once when Play is first pressed) + 250 m.
+- Cesium `CatmullRomSpline` through those points in ECEF, with the ground distance of each
+  sample as its "time". A Catmull-Rom spline passes through every control point.
+- Constant ground speed: a distance lookup table for the CURVE (spline sampled every 10 m of its
+  time, haversine between samples), searched with `locateDistance` (#18). Without it the
+  unit test measured 37.5–62.5 m per 50 m step (ease-in at the ends, cut corners); with it,
+  49–51 m.
+- Camera 600 m behind and 300 m above the current point, looking at the point 800 m ahead
+  (about 12° down). Heading smoothed exponentially, α = 1 − e^(−dt/τ), τ = 1.5 s, turning the
+  short way round. Pitch is not smoothed. Speed 250 m/s (a 10 km day in 40 s; #20 adds speed
+  control).
+- A runtime guard lifts the camera to at least 150 m above the terrain loaded under it.
+- `FlythroughController` is a plain class with `play()` / `pause()` / `destroy()` and one
+  `requestAnimationFrame` loop. React holds a reference to it (from `FlythroughLayer`, one per
+  route) and its status, which changes a few times per flight. While playing, the mouse does not
+  move the camera (`enableInputs = false`); pressing a day pauses the flythrough.
+- `play()` waits for World Terrain to finish loading (Cesium leaves `terrainProvider` undefined
+  until then; the first e2e run hit this) for up to 20 s.
+- The Play button stays focusable while preparing (`aria-disabled`): a `disabled` button lost
+  keyboard focus, so a keyboard user's next Enter did nothing (found by the e2e test).
+**Alternatives:** Cesium's `SampledPositionProperty` + clock animation (moves an entity, but the
+camera would still need per-frame code, and constant ground speed would still need the table);
+a spline through the raw trail points (uneven spacing → uneven speed); the controller inside
+`ViewerContext` as planned in ui-design (one more context; a callback prop is simpler for now).
+**Limits:** Terrain at level 11 is coarse (about 140 m between samples); the window maximum, the
+clearance and the runtime guard cover that. Whether the speed and heights feel right on real
+treks, and the frame rate on the team's laptops (NFR1, #29), must be checked by the team.
+TODO(team): verify on real routes after #9–#12.

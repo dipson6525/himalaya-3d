@@ -62,7 +62,7 @@ flowchart LR
   Globe --> RouteLayer["RouteLayer #15<br/>trail clamped to ground"]:::sparsh
   Globe --> Stops["StopMarkers + StopPopup #15"]:::sparsh
   Globe --> StageLayer["StageLayer (exists) #49<br/>highlights one day"]:::sparsh
-  Globe --> Fly["FlythroughCamera #19<br/>(no UI of its own)"]:::sparsh
+  Globe --> Fly["FlythroughLayer + controller (exists) #19<br/>(no UI of its own)"]:::sparsh
   Globe --> HoverMarker["ProfileHoverMarker #22"]:::dipson
   Globe --> Quakes["EarthquakeLayer #25"]:::dipson
   Globe --> Credits["Credits #15 #25 #26<br/>in Cesium's credit area"]:::dipson
@@ -74,7 +74,7 @@ flowchart LR
   Panel --> TrekTab["TrekPanel (exists) #16"]:::dipson
   TrekTab --> Selector["TrekSelector (element today)<br/>native select #16"]:::dipson
   TrekTab --> StopList["StopList (element today) #16<br/>day buttons #49"]:::dipson
-  TrekTab --> FlyControls["FlythroughControls #20<br/>play · pause · speed · day"]:::sparsh
+  TrekTab --> FlyControls["FlythroughControls (exists) #19<br/>play · pause; speed · day #20"]:::sparsh
   Panel --> PlanTab["PlanTab"]:::unique
   PlanTab --> PlanNote["Disclaimer banner"]:::dipson
   PlanTab --> Itinerary["ItineraryEditor #24"]:::unique
@@ -128,7 +128,7 @@ change many times a second in a small context of their own (or out of React enti
 | `sunTime` (date and time) | `AppState` | SunSlider | CesiumGlobe (scene lighting / clock) |
 | `profileHighlightM` (distance along the trail, metres) | `ProfileHoverContext` (its own) | ElevationProfile (hover), RouteLayer (click on trail) | ProfileHoverMarker, ElevationProfile |
 
-`CesiumGlobe` also shares the Cesium Viewer, and later the flythrough controller, through
+`CesiumGlobe` also shares the Cesium Viewer through
 `ViewerContext` (added in #15). Neither changes after start-up, so sharing them re-renders nothing.
 
 ```mermaid
@@ -139,7 +139,7 @@ flowchart LR
   State --> Warn["AcclimatizationWarnings"]
   Chart["ElevationProfile"] -->|profileHighlightM| Hover[("ProfileHoverContext")]
   Hover --> Marker["ProfileHoverMarker"]
-  Controls["FlythroughControls"] -->|"play() pause()<br/>setSpeed() jumpToDay()"| Ctrl["flythrough controller<br/>(via ViewerContext)"]
+  Controls["FlythroughControls"] -->|"play() pause()<br/>setSpeed() jumpToDay()"| Ctrl["flythrough controller<br/>(App holds it, ADR-028)"]
   Ctrl --> Cam["FlythroughCamera"]
   Ctrl -->|flythroughStatus| State
 ```
@@ -308,7 +308,8 @@ when a value is needed deep in several branches (the language, #27, is the likel
 Still to add:
 
 - the `AppState` context (see above);
-- the flythrough controller (#19) (`ViewerContext` exists since #15);
+- the flythrough's speed and jump-to-day controls (#20). The controller itself exists since #19;
+  `FlythroughLayer` hands it to `App` with a callback instead of `ViewerContext` (ADR-028);
 - the profile strip row in the grid (#21);
 - the USGS and Open-Meteo credits (#25, #26); the OSM credit is on since #14.
 

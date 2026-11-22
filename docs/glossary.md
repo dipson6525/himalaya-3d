@@ -6,7 +6,7 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | --- | --- |
 | **ADR** | Architecture Decision Record — a short note of an important choice and why (`docs/decisions.md`). |
 | **Base path** | The URL folder a site is served from. Ours is `/himalaya-3d/` on GitHub Pages and `/` in dev. |
-| **Catmull-Rom spline** | A smooth curve that passes through every given point; used for the flythrough path (M4). |
+| **Catmull-Rom spline** | A smooth curve that passes through every given point; used for the flythrough path (`engine/flythrough/path.ts`). |
 | **Cesium ion** | Cesium's cloud service that streams World Terrain and imagery; needs an access token. |
 | **CESIUM_BASE_URL** | The URL folder where Cesium looks for its workers, assets and widget CSS at runtime. |
 | **Component tree** | The nesting of React components: which component renders which. Drawn in `docs/ui-design.md`. |
@@ -16,6 +16,7 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **Douglas–Peucker** | Line simplification: find the point farthest from the line joining the first and last points; if it is within the tolerance drop everything between them, otherwise keep it and repeat on both halves. |
 | **EPSG code** | A number that names a coordinate system: 4326 = longitude/latitude (WGS84); 32645 = UTM zone 45 north. |
 | **ECEF** | Earth-Centred, Earth-Fixed coordinates: x, y, z in metres from the Earth's centre. Cesium's `Cartesian3`. |
+| **Exponential smoothing** | Each frame, move a fraction α = 1 − e^(−dt/τ) of the way to the target; after τ seconds about 63% of the way. Used for the flythrough heading. |
 | **FeatureCollection** | A GeoJSON object holding a list of Features; each route file is one. A Feature = geometry + properties. |
 | **envDir** | The Vite setting for which folder `.env*` files are read from (ours: project root). |
 | **GeoJSON** | JSON format for map features; coordinates are `[longitude, latitude]`. |
