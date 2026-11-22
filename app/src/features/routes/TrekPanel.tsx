@@ -12,6 +12,7 @@
  * pressing it again removes the highlight. The stage length is computed from the trail
  * (lib/geo/stages.ts), never typed into the data.
  */
+import type { ReactNode } from 'react';
 import { t, type Language } from '../../i18n';
 import type { Stage } from '../../lib/geo/stages';
 import { routeDrawing } from './routeEntities';
@@ -31,6 +32,8 @@ interface TrekPanelProps {
   onSelectStage: (toStopId: string | null) => void;
   /** End-stop id of the stage StageLayer has really drawn (for the e2e test). */
   drawnStage: string | null;
+  /** Controls shown under the status line once a trek is loaded (the flythrough button, #19). */
+  children?: ReactNode;
 }
 
 /** One line telling the user what the globe is showing (or why it shows no trek). */
@@ -51,6 +54,7 @@ export function TrekPanel({
   selectedStageStopId,
   onSelectStage,
   drawnStage,
+  children,
 }: TrekPanelProps) {
   const stops = routes.current ? splitRoute(routes.current).stops : [];
 
@@ -80,6 +84,8 @@ export function TrekPanel({
       <p data-testid="route-status" data-drawn-stops={drawnStops} role="status">
         {statusText(routes, language)}
       </p>
+
+      {routes.current && children}
 
       {stops.length > 0 && (
         <>
