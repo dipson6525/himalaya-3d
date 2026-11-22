@@ -50,7 +50,7 @@ logic of its own. Everything else is still to be built.
 
 ```mermaid
 flowchart LR
-  App["App (exists)<br/>ui/App.tsx<br/>will hold AppState #16"]:::dipson
+  App["App (exists)<br/>ui/App.tsx<br/>calls useRoutes #16"]:::dipson
 
   App --> Header["Header (element today)"]:::dipson
   Header --> Title["Title + tagline (element today)"]:::dipson
@@ -69,10 +69,10 @@ flowchart LR
 
   App --> Profile["ProfileStrip #21<br/>ElevationProfile (Chart.js)<br/>+ ascent / descent / highest"]:::dipson
 
-  App --> Panel["SidePanel (element today)<br/>tabs: Trek · Plan · Layers"]:::dipson
-  Panel --> TrekTab["TrekTab"]:::dipson
-  TrekTab --> Selector["TrekSelector #16"]:::dipson
-  TrekTab --> StopList["StopList #16"]:::dipson
+  App --> Panel["SidePanel (exists) #16<br/>tabs: Trek · Plan · Layers"]:::dipson
+  Panel --> TrekTab["TrekPanel (exists) #16"]:::dipson
+  TrekTab --> Selector["TrekSelector (element today)<br/>native select #16"]:::dipson
+  TrekTab --> StopList["StopList (element today) #16"]:::dipson
   TrekTab --> FlyControls["FlythroughControls #20<br/>play · pause · speed · day"]:::sparsh
   Panel --> PlanTab["PlanTab"]:::unique
   PlanTab --> PlanNote["Disclaimer banner"]:::dipson
@@ -96,7 +96,7 @@ flowchart LR
 | LanguageToggle | `app/src/ui/` | Dipson | FR9 | #27 |
 | CesiumGlobe (with the no-token notice), ViewerContext | `app/src/engine/` | Sparsh | FR1 | #14, #15 |
 | RouteLayer, StopMarkers, StopPopup | `app/src/features/routes/` | Sparsh | FR2 | #15 |
-| TrekSelector, StopList | `app/src/features/routes/` | Dipson | FR2 | #16 |
+| TrekPanel (TrekSelector + StopList) | `app/src/features/routes/` | Dipson | FR2 | #16 |
 | FlythroughCamera, FlythroughControls | `app/src/engine/`, `app/src/features/routes/` | Sparsh | FR3 | #19, #20 |
 | ElevationProfile, ProfileHoverMarker | `app/src/features/elevation/` | Dipson | FR4 | #21, #22 |
 | ItineraryEditor, AcclimatizationWarnings | `app/src/features/acclimatization/`, `features/itinerary/` | Unique | FR5, FR6 | #23, #24 |
@@ -285,7 +285,7 @@ chart and map easy to follow. It can be hidden to give the globe more room.
 | State | What the user sees |
 | --- | --- |
 | No Cesium token | Low-resolution globe, no terrain, the notice at the top-left of the globe (exists) |
-| No trek selected yet | Globe over Nepal; Trek tab shows the selector and a one-line hint; profile strip hidden |
+| No route files yet | Globe over Nepal; Trek tab shows an empty, disabled selector and "No trek data yet"; profile strip hidden. (When routes exist, the first one is selected at start-up, so there is no "nothing selected" state.) |
 | Loading terrain or the profile | A short "Loading…" text in the strip; controls stay usable |
 | Live layer fails or the user is offline | The layer turns itself off and shows a one-line message in the Layers tab; the rest of the app keeps working |
 | Itinerary with no warnings | A short "No warnings for this plan" line, still under the disclaimer banner |
@@ -293,22 +293,33 @@ chart and map easy to follow. It can be hidden to give the globe more room.
 
 ## How this maps to the current code
 
-`app/src/ui/App.tsx` already has the header, the globe area, a side panel and the disclaimer
-footer as plain elements, and `styles.css` already has the 900 px breakpoint, the 320 px panel and
-the 40% height limit for the stacked panel. Still to add:
+`app/src/ui/App.tsx` has the header, the globe area, the side panel (`SidePanel.tsx`, with the
+Trek, Plan and Layers tabs since #16) and the disclaimer footer, and `styles.css` has the 900 px
+breakpoint, the 320 px panel and the 40% height limit for the stacked panel.
 
-- the `AppState` context, when the first shared value arrives (#16);
-- the flythrough controller (#19) (`ViewerContext` now exists, #15);
-- the tabs (#16) and the profile strip row in the grid (#21);
+**Shared state today (#16).** The first shared value, the selected trek, lives in the `useRoutes`
+hook, which `App` calls once and passes down as props: `RouteLayer` gets `routes.current`,
+`TrekPanel` gets the whole state (list, `selectedId`, `select`). With one shared value and two
+readers, props are simpler to follow than a context, so `AppState` is not built yet. It arrives
+when a value is needed deep in several branches (the language, #27, is the likely first).
+
+Still to add:
+
+- the `AppState` context (see above);
+- the flythrough controller (#19) (`ViewerContext` exists since #15);
+- the profile strip row in the grid (#21);
 - the USGS and Open-Meteo credits (#25, #26); the OSM credit is on since #14.
 
 ### Gaps in the current code this design fixes later
 
 | Gap today | Why it matters | Fix in |
 | --- | --- | --- |
-| The footer has `role="note"` | It replaces the footer's built-in "contentinfo" landmark, which screen-reader users use to jump to the page footer. A note role is also not read out automatically. | #16: keep a plain `<footer>`. Update the smoke test, which finds the footer with `getByRole('note')`. |
 | `index.html` always says `lang="en"` | Nepali text would be read with English pronunciation. | #27: set `document.documentElement.lang` with the language toggle |
 | `Noto Sans Devanagari` is in the CSS font list but never loaded | It is used only if already installed; otherwise the system's Devanagari font is used. | #27: bundle it, or remove it from the list and rely on system fonts |
+
+Fixed so far: the footer had `role="note"`, which replaced its built-in "contentinfo" landmark
+(the one screen-reader users jump to). Since #16 it is a plain `<footer>`, and the e2e tests find
+it with `getByRole('contentinfo')`.
 
 ## How we will check this design
 
