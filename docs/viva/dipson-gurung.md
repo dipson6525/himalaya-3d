@@ -163,6 +163,13 @@ and releases them in the wrong order to prove it.
 Tab and arrow keys, and a phone shows its own picker. A custom drop-down would need all of that
 rebuilt by hand. The footer lost `role="note"`, so it is the page's "contentinfo" landmark again.
 
+**Day buttons (#49, Sparsh's stage maths).** Every stop after the first is a `<button>` with
+`aria-pressed`: a *toggle* button, which a screen reader announces as "pressed" or "not
+pressed". Pressing it highlights that day's stage on the globe; pressing again removes it. The
+first stop has no button because no stage is walked to reach it. The selected stage lives in
+`App` as the id of its end stop; `TrekPanel.chooseTrek` clears it before loading another trek,
+so a highlight never carries over to the wrong trek.
+
 ## Key concepts from first principles
 
 - **i18n** ("internationalisation", 18 letters between i and n): designing the app so text can be

@@ -366,3 +366,33 @@ slow).
 **Consequences:** The camera flies to each chosen trek (`RouteLayer` flies when its route
 changes). Plan and Layers tabs show a one-line placeholder until #24–#26. The e2e tests use a
 second synthetic fixture route.
+
+## ADR-027 · Daily stages are computed in the app from the trail and the stops (Sparsh, 2026-11-22)
+
+**Context:** Issue #49 (FR2 "route, stops and daily stages"). A route file stores one trail line
+and the stops with their arrival day (ADR-017); nothing says where each day starts and ends.
+**Decision:**
+- Each stop is put on the trail at the nearest point (`nearestPointOnLine` in
+  `lib/geo/stages.ts`: per segment, a flat local map in metres with x scaled by cos(latitude),
+  projection t clamped to 0…1). The stage that ends at a stop runs from the previous stop (in
+  day order) and is walked on that stop's arrival day. Rest days need no special case.
+- Stage length = difference of the two distances along the trail (haversine segment lengths,
+  #18). It is a map distance along the simplified line, so real walking is longer; the UI says
+  "along the trail", never "walking distance".
+- Out-and-back treks walk the same line backwards: the length is the absolute difference and the
+  piece of line is reversed, so a stage always runs from its start stop to its end stop.
+- Computed in the browser when a route loads (`routeStages`, `useMemo` in `App`), not stored in
+  the route file: no extra schema field to keep in sync, and nothing to type in by hand.
+- The highlight (`StageLayer`) is its own Cesium data source raised to the top, and `RouteLayer`
+  keeps the trail's data source at the bottom. A polyline `zIndex` was tried first, but it only
+  orders lines inside one data source, and the trail covered the highlight.
+- In the Trek tab, every stop after the first is a toggle button (`aria-pressed`); choosing
+  another trek clears the highlight.
+**Alternatives:** split the trail in the Python pipeline and store one LineString per day (more
+schema, and the app would still need the maths for the flythrough's "jump to day N", #20);
+nearest *vertex* instead of nearest point on a segment (simpler, but a stop between two far-apart
+vertices would land at the wrong one).
+**Limits:** A trail that passes the same place twice (a loop, or a side trip) can put a stop on
+the wrong pass, because the nearest point wins. The pipeline keeps stops within 500 m of the
+trail, so the offset is small. TODO(team): check each real route's stages by eye when #9–#12
+add them.

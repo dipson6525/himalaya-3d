@@ -29,6 +29,9 @@ in M7 you lead performance measurement and testing.
 | `app/e2e/routes.spec.ts`, `app/e2e/fixtures/` | e2e with a SYNTHETIC route served by `page.route` | FR2 |
 | `app/src/lib/geo/distance.ts` | Haversine, cumulative distance, distance → (segment, t) lookup | FR3, FR4 |
 | `app/src/lib/geo/distance.test.ts` | Hand-checkable tests (1° = 111,194.9 m, πR/2, πR, uneven spacing) | FR3, FR4 |
+| `app/src/lib/geo/stages.ts` (+ test) | Put stops on the trail, cut the trail into daily stages | FR2 |
+| `app/src/features/routes/StageLayer.tsx` | Highlights the chosen day's stage; flies the camera to it | FR2 |
+| `app/e2e/stages.spec.ts`, `app/e2e/serveFixtures.ts` | e2e: day buttons, highlight, clearing; shared fixture server | FR2 |
 | `app/playwright.config.ts` | Runs e2e tests against the production build under `/himalaya-3d/` | all |
 | `app/e2e/smoke.spec.ts` | Smoke test: app loads, canvas renders, credits + disclaimer, no 404s | FR1, NFR5–6 |
 | `.github/workflows/deploy.yml` | Builds with the token secret and publishes to Pages | NFR7 |
@@ -229,7 +232,53 @@ RouteLayer FLY effect [viewer, route]:  camera.flyToBoundingSphere(sphere around
   the medical disclaimer with it).
 
 **Limits.** The first route is shown automatically at start-up; since #16 the user can choose
-another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info box is Cesium's own; its styling is basic.
+another in the Trek tab (Dipson's `TrekPanel`). Daily stages: see the next section (#49). The
+info box is Cesium's own; its styling is basic.
+
+### Daily stages (`lib/geo/stages.ts`, `StageLayer.tsx`, issue #49)
+
+**The problem.** The route file has one trail line and the stops with their arrival day. FR2
+also wants the *daily stages*: which part of the line is walked on which day.
+
+**Step 1 — put each stop on the trail** (`nearestPointOnLine`). For every segment A→B:
+
+```
+flat map around A, in metres:  x = Δlon × 111,195 × cos(lat of A),  y = Δlat × 111,195
+t = ((P − A) · (B − A)) / |B − A|²      → how far along AB the foot of the perpendicular is
+t = clamp(t, 0, 1)                      → stay on the segment, not on the infinite line
+nearest point Q = A + t (B − A);  offset = |P − Q|
+```
+
+The segment with the smallest offset wins, and the stop's distance along the trail is
+`cumulative[i] + t × (length of segment i)`, using the haversine table from #18.
+
+*Worked example (the unit test, on the equator, where cos 0° = 1 and 0.01° = 1,111.95 m):*
+line (0, 0) → (0.01, 0) → (0.01, 0.01), an L. Stop P = (0.009, 0.002).
+- Segment 1: B − A = (1,111.95, 0), P − A = (1,000.75, 222.39). t = 1,000.75 × 1,111.95 /
+  1,111.95² = 0.9; Q = (1,000.75, 0); offset = 222.39 m.
+- Segment 2: A = (0.01, 0), B − A = (0, 1,111.95), P − A = (−111.19, 222.39). t = 222.39 /
+  1,111.95 = 0.2; offset = 111.19 m. **Smaller, so segment 2 wins.**
+- Distance along = 1,111.95 + 0.2 × 1,111.95 = 1,334.34 m.
+
+**Step 2 — stages.** Sort the stops by day. The stage that ends at stop k is the trail from
+stop k−1 to stop k, walked on stop k's arrival day. Stops on days 1, 2, 4 give two stages,
+"day 2" and "day 4"; day 3 is a rest day and has no stage. Length = |d_k − d_(k−1)|.
+
+**Step 3 — cut the line** (`sliceLine`): the exact start point (from `locateDistance` +
+`pointOnSegment`, #18), every original point in between, the exact end point. If the start is
+further along than the end (the way back of an out-and-back trek), cut it the normal way and
+reverse it.
+
+**On the globe** (`StageLayer`): one yellow, 8 px, ground-clamped polyline in its own data
+source, then the camera flies to it. *Drawing order lesson:* the first version used
+`zIndex: 1` and the trail still covered the highlight, which only the screenshot showed.
+`zIndex` orders lines inside ONE data source; data sources are drawn in their list order. So
+the stage's data source is raised to the top, and `RouteLayer` lowers the trail's to the bottom
+every time it redraws (ADR-027).
+
+**Limits.** Map distance along the simplified line: real walking is longer (slopes, small
+zig-zags removed by Douglas–Peucker). If the trail passes the same place twice, a stop can land
+on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these stages.
 
 ## Key concepts from first principles
 
@@ -303,6 +352,21 @@ another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info b
     can never break the popup or inject markup.
 26. **How can the route be tested before real data exists?** — The e2e test intercepts the two
     requests and serves a synthetic fixture; the screenshot is named `...-synthetic.png`.
+27. **How do you find where a stop is on the trail?** — Project it onto every segment (t clamped
+    to 0…1), keep the nearest, and add t × segment length to the cumulative distance.
+28. **Why clamp t?** — Without it the foot of the perpendicular can lie on the infinite line
+    beyond A or B, i.e. off the trail.
+29. **Why a flat map, when distances use haversine?** — Projection needs straight-line geometry;
+    over a trail segment (metres to a few hundred metres) the flat map is accurate enough. Lengths
+    still come from the haversine table.
+30. **Is "7.4 km" the walking distance?** — No: it is the map distance along the simplified
+    trail. Slopes and removed zig-zags make the real walk longer; the UI says "along the trail".
+31. **How are rest days and out-and-back treks handled?** — A rest day is a gap in the day
+    numbers, so it has no stage. On the way back the distance decreases; the length uses the
+    absolute difference and the piece of line is reversed.
+32. **Why was the highlight hidden at first, and how was it fixed?** — `zIndex` only orders
+    lines within one data source; the trail's data source was drawn later. Fixed by raising the
+    stage's data source to the top and keeping the trail's at the bottom.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -327,6 +391,13 @@ another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info b
    `UPDATE_SCREENSHOTS=1 npm run e2e`. Then revert.
 10. Explain, with the code open, what happens if the route changes while `dataSources.add` is
     still pending. Which lines make sure the old route's markers are removed anyway?
+11. Redo the L-shaped worked example above for the stop (0.004, −0.001): which segment wins,
+    what is t, and what is the distance along? Add it as a test.
+12. In `RouteLayer.tsx`, remove the `lowerToBottom` line, take a screenshot with a stage pressed
+    (`UPDATE_SCREENSHOTS=1 npx playwright test e2e/stages.spec.ts`), and explain what you see.
+    Then revert.
+13. Draw an out-and-back trek on paper (up on days 2–3, down on days 4–5) and work out each
+    stage's start, end and direction before checking with `splitIntoStages`.
 
 ## AI use in this part
 
@@ -338,8 +409,12 @@ another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info b
   subagent found that the worked example did not reproduce on a calculator (rounding), that the
   last segment and latitude interpolation were untested, and that a NaN distance slipped through;
   all fixed, and a mutation check then caught five deliberate bugs.
+- **Issue #49 (2026-11-22):** Claude Code wrote `stages.ts` (+ test), `StageLayer.tsx`, the
+  day buttons, `stages.spec.ts`, ADR-027 and this section. The first highlight was drawn under
+  the trail; this was found by looking at the screenshot and fixed. A unit test caught a
+  duplicated end point in `sliceLine`, also fixed.
 - **What you must still do:** read the four engine files, run the tests and the app yourself,
-  and do exercises 2 and 5–8 by hand.
+  and do exercises 2, 5–8 and 11–13 by hand.
 
 ## Changelog
 
@@ -352,3 +427,5 @@ another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info b
   cumulative distance, binary search), limits, questions 18–22, exercises 7–8.
 - 2026-11-21 — M3 #15: route drawing walkthrough (ViewerContext, data source, popups, async
   safety), Q23–26, exercises 9–10.
+- 2026-11-22 — M3 #49: daily stages walkthrough (projection worked example, stages, slicing,
+  drawing order), Q27–32, exercises 11–13, AI use.

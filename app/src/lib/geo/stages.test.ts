@@ -29,8 +29,8 @@ const L_SHAPE: LonLat[] = [
 describe('nearestPointOnLine', () => {
   it('a point beside the middle of a segment lands halfway along it', () => {
     const result = nearestPointOnLine(STRAIGHT, [0.005, 0.001]);
-    expect(result.distanceM).toBeCloseTo(STEP_M / 2, 1); // 555.98 m
-    expect(result.offsetM).toBeCloseTo(STEP_M / 10, 1); // 0.001° north = 111.20 m
+    expect(result.distanceM).toBeCloseTo(STEP_M / 2, 1); // 555.97 m
+    expect(result.offsetM).toBeCloseTo(STEP_M / 10, 1); // 0.001° north = 111.19 m
   });
 
   it('a point on a vertex lands exactly there, with no offset', () => {

@@ -28,6 +28,8 @@ add the reviewer's name, and fix `app/src/i18n/ne.json` if needed.
 | `stops.heading` | Overnight stops | रात बस्ने ठाउँहरू | Needs review | |
 | `stops.item` | Day {day} · {name} · {altitude} m | दिन {day} · {name} · {altitude} मि. | Needs review (keep {day}, {name}, {altitude}; is "मि." the right abbreviation for metres?) | |
 | `plan.comingSoon` | The itinerary editor and acclimatization warnings arrive with issue #24. | यात्रा-तालिका सम्पादक र उचाइ-अनुकूलन चेतावनीहरू इस्यु #२४ मा आउँछन्। | Needs review | |
+| `stops.hint` | Choose a day to highlight the trail walked that day. | त्यस दिन हिँडिने बाटो नक्सामा देखाउन दिन छान्नुहोस्। | Needs review | |
+| `stops.stageLength` | {km} km along the trail from the previous stop | अघिल्लो बिसौनीबाट बाटो हुँदै {km} कि.मि. | Needs review (keep {km}) | |
 | `layers.comingSoon` | Live earthquake and weather layers arrive with issues #25 and #26. | भूकम्प र मौसमका प्रत्यक्ष तहहरू इस्यु #२५ र #२६ मा आउँछन्। | Needs review | |
 | `disclaimer.medical` | Safety information in this app is general guidance only, not medical advice. … | यस एपको सुरक्षा जानकारी सामान्य मार्गदर्शन मात्र हो, चिकित्सा सल्लाह होइन। … | Needs review (safety wording — high priority) | |
 
