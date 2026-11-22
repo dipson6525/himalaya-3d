@@ -32,9 +32,20 @@ export function App() {
       id: 'trek',
       labelKey: 'tabs.trek',
       content: <TrekPanel routes={routes} language={LANGUAGE} drawnStops={drawnStops} />,
+      hasControls: true,
     },
-    { id: 'plan', labelKey: 'tabs.plan', content: <p>{t('plan.comingSoon', LANGUAGE)}</p> },
-    { id: 'layers', labelKey: 'tabs.layers', content: <p>{t('layers.comingSoon', LANGUAGE)}</p> },
+    {
+      id: 'plan',
+      labelKey: 'tabs.plan',
+      content: <p>{t('plan.comingSoon', LANGUAGE)}</p>,
+      hasControls: false,
+    },
+    {
+      id: 'layers',
+      labelKey: 'tabs.layers',
+      content: <p>{t('layers.comingSoon', LANGUAGE)}</p>,
+      hasControls: false,
+    },
   ];
 
   return (

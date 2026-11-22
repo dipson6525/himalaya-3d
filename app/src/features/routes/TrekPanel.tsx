@@ -27,6 +27,7 @@ function statusText(routes: RoutesState, language: Language): string {
   return t('routes.showing', language, { name: drawing.name, count: drawing.stops.length });
 }
 
+/** The Trek tab: trek selector, status line and the selected trek's overnight stops. */
 export function TrekPanel({ routes, language, drawnStops }: TrekPanelProps) {
   const stops = routes.current ? splitRoute(routes.current).stops : [];
 
@@ -54,6 +55,8 @@ export function TrekPanel({ routes, language, drawnStops }: TrekPanelProps) {
       {stops.length > 0 && (
         <>
           <h2 className="panel-heading">{t('stops.heading', language)}</h2>
+          {/* An ordered list, but without the 1. 2. 3. markers: they would clash with the day
+              numbers ("3. Day 4 …"). Screen readers still announce it as a list. */}
           <ol className="stop-list">
             {stops.map((stop) => (
               <li key={stop.properties.id}>

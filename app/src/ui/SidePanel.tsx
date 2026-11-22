@@ -7,7 +7,13 @@
  *   aria-controls pointing at its panel; each panel has role="tabpanel" and aria-labelledby;
  * - only the selected tab is reachable with the Tab key (tabIndex 0, the others -1); inside the
  *   row, ArrowLeft/ArrowRight move between tabs (wrapping round) and Home/End jump to the ends
- *   (see tabKeys.ts). Moving with the keys also selects the tab ("automatic activation").
+ *   (see tabKeys.ts). Moving with the keys also selects the tab ("automatic activation");
+ * - a panel with no control of its own (today Plan and Layers) gets tabIndex 0, so Tab from its
+ *   tab still lands somewhere and a screen reader reads the panel.
+ *
+ * Panels that are not selected are HIDDEN (the `hidden` attribute), not removed: every tab's
+ * aria-controls must point at an element that exists, and a panel keeps its state (for example
+ * a half-filled form) while the user looks at another tab.
  */
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { MessageKey } from '../i18n';
@@ -18,6 +24,8 @@ export interface PanelTab {
   id: 'trek' | 'plan' | 'layers';
   labelKey: MessageKey;
   content: ReactNode;
+  /** True if the panel starts with a control (select, button…) that Tab can reach. */
+  hasControls: boolean;
 }
 
 interface SidePanelProps {
@@ -25,6 +33,7 @@ interface SidePanelProps {
   language: Language;
 }
 
+/** The tab row plus one panel per tab; remembers which tab is selected. */
 export function SidePanel({ tabs, language }: SidePanelProps) {
   const [selected, setSelected] = useState(0);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -71,6 +80,7 @@ export function SidePanel({ tabs, language }: SidePanelProps) {
           role="tabpanel"
           id={`panel-${tab.id}`}
           aria-labelledby={`tab-${tab.id}`}
+          tabIndex={tab.hasControls ? undefined : 0}
           hidden={index !== selected}
           className="tab-panel"
         >

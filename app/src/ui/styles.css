@@ -101,6 +101,7 @@ body,
 
 .tab {
   flex: 1;
+  min-height: 44px; /* touch target, ui-design rule 6 */
   padding: 0.6rem 0.5rem;
   border: 0;
   border-bottom: 3px solid transparent;
@@ -135,6 +136,7 @@ body,
 }
 
 .field select {
+  min-height: 44px; /* touch target, ui-design rule 6 */
   padding: 0.4rem;
   font: inherit;
 }
@@ -146,7 +148,8 @@ body,
 
 .stop-list {
   margin: 0;
-  padding-left: 1.25rem;
+  padding-left: 0;
+  list-style: none;
   font-size: 0.9rem;
   line-height: 1.6;
 }

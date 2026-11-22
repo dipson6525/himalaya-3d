@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
+import { saveScreenshot } from './screenshot';
 
 const fixture = (name: string) =>
   readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf-8');
@@ -52,7 +53,9 @@ test('choose another trek with the keyboard; the stop list and globe follow', as
   const selector = page.getByLabel('Choose a trek');
   await expect(selector.getByRole('option')).toHaveText(['Test Route', 'Second Test Route']);
   await selector.focus();
-  await page.keyboard.press('ArrowDown'); // a closed native <select> changes on ArrowDown
+  // On Windows and Linux (CI), ArrowDown on a closed native <select> changes its value at once.
+  // (On macOS it opens the pop-up list instead; our tests run Chromium on Windows and Linux.)
+  await page.keyboard.press('ArrowDown');
 
   await expect(selector).toHaveValue('second-route');
   await expect(status).toHaveText(
@@ -67,9 +70,7 @@ test('choose another trek with the keyboard; the stop list and globe follow', as
   await expect(status).toHaveAttribute('data-drawn-stops', '3', { timeout: 30_000 });
 
   if (process.env.UPDATE_SCREENSHOTS === '1') {
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2500); // let the 1.5 s camera flight to the route finish
-    await page.screenshot({ path: SCREENSHOT });
+    await saveScreenshot(page, SCREENSHOT);
   }
 
   // Back to the first trek: it comes from the cache, so it is not downloaded a second time.
@@ -101,6 +102,57 @@ test('a trek that fails to load clears the map instead of showing the old trek',
   await expect(status).toHaveAttribute('data-drawn-stops', '2', { timeout: 30_000 });
 });
 
+test('a download that finishes late never replaces the newest choice', async ({ page }) => {
+  await serveFixtures(page);
+  // Hold every request for second-route.geojson until the test calls its release function.
+  // (Playwright uses the route registered LAST first, so this one wins over serveFixtures.)
+  const held: (() => void)[] = [];
+  await page.route('**/data/routes/second-route.geojson', async (route) => {
+    await new Promise<void>((release) => held.push(release));
+    await route.fulfill({
+      contentType: 'application/geo+json',
+      body: fixture('second-route.geojson'),
+    });
+  });
+  /** Release held download number `n` and give the app time to (wrongly) use the answer. */
+  const answer = async (n: number) => {
+    const response = page.waitForResponse('**/second-route.geojson');
+    held[n]();
+    await response;
+    await page.waitForTimeout(500);
+  };
+
+  await page.goto('./');
+  const status = page.getByTestId('route-status');
+  const selector = page.getByLabel('Choose a trek');
+  await expect(status).toHaveAttribute('data-drawn-stops', '2', { timeout: 30_000 });
+
+  await selector.selectOption('second-route'); // download 0 starts (held)
+  await expect.poll(() => held.length).toBe(1);
+  await selector.selectOption('test-route'); // cached: shown at once
+  await selector.selectOption('second-route'); // the same trek again: download 1 (held)
+  await expect.poll(() => held.length).toBe(2);
+  await expect(status).toHaveText('Loading treks…');
+
+  // The OLD download answers first. Its trek id matches the selection, but it is not the newest
+  // request, so it must be ignored: the app keeps waiting for download 1.
+  await answer(0);
+  await expect(status).toHaveText('Loading treks…');
+  await expect(status).toHaveAttribute('data-drawn-stops', '0');
+
+  // The user goes back to Test Route, THEN download 1 answers: it must not take over the map.
+  await selector.selectOption('test-route');
+  await expect(status).toHaveAttribute('data-drawn-stops', '2', { timeout: 30_000 });
+  await answer(1);
+  await expect(status).toContainText('Showing Test Route');
+  await expect(status).toHaveAttribute('data-drawn-stops', '2');
+
+  // The late answers were still cached, so choosing the trek now needs no third download.
+  await selector.selectOption('second-route');
+  await expect(status).toHaveAttribute('data-drawn-stops', '3', { timeout: 30_000 });
+  expect(held).toHaveLength(2);
+});
+
 test('side-panel tabs follow the WAI-ARIA tabs pattern', async ({ page }) => {
   await serveFixtures(page);
   await page.goto('./');
@@ -116,16 +168,21 @@ test('side-panel tabs follow the WAI-ARIA tabs pattern', async ({ page }) => {
   await expect(tab('Plan')).toHaveAttribute('tabindex', '-1');
 
   await tab('Trek').focus();
+  /** `name` is focused and selected, its panel shows, and it is the ONLY selected tab stop. */
   const expectSelected = async (name: string) => {
     await expect(tab(name)).toBeFocused();
     await expect(tab(name)).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tabpanel', { name })).toBeVisible();
+    await expect(tablist.locator('[aria-selected="true"]')).toHaveCount(1);
+    await expect(tablist.locator('[tabindex="0"]')).toHaveCount(1);
   };
 
   await page.keyboard.press('ArrowRight');
   await expectSelected('Plan');
   await expect(page.getByRole('tabpanel', { name: 'Plan' })).toContainText('issue #24');
-  await expect(page.getByRole('tabpanel', { name: 'Trek' })).toBeHidden();
+  // The Trek panel is hidden but still in the page (aria-controls must point at something).
+  await expect(page.locator('#panel-trek')).toBeAttached();
+  await expect(page.locator('#panel-trek')).toBeHidden();
 
   await page.keyboard.press('End');
   await expectSelected('Layers');
@@ -136,10 +193,16 @@ test('side-panel tabs follow the WAI-ARIA tabs pattern', async ({ page }) => {
   await page.keyboard.press('Home');
   await expectSelected('Trek');
 
-  // The Trek panel kept its state while hidden (it is hidden, not removed).
   await expect(page.getByTestId('route-status')).toContainText('Showing Test Route');
 
   // Tab leaves the tab row and goes into the panel, to the trek selector.
   await page.keyboard.press('Tab');
   await expect(page.getByLabel('Choose a trek')).toBeFocused();
+
+  // A panel with no controls (Plan) is itself the next Tab stop, so its text is not skipped.
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('ArrowRight');
+  await expectSelected('Plan');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('tabpanel', { name: 'Plan' })).toBeFocused();
 });

@@ -3,10 +3,11 @@
  * Owner: Sparsh Gorkhali (loading), Dipson Gurung (trek selector, #16). Related FR: FR2.
  *
  * - On start-up it downloads data/routes/index.json and selects the first route.
- * - select(id) is called by the trek selector: it takes that route from the cache if it was
- *   shown before, otherwise it clears the map and downloads it.
- * - If the user picks another route before a download finishes, the late answer is ignored, so
- *   the map always shows the route that is selected in the list.
+ * - select(id) is called by the trek selector: if that route file was downloaded before it comes
+ *   from the cache; otherwise the map is cleared and the file is downloaded.
+ * - Every select() call gets a number. Only the answer to the NEWEST call is used, so a download
+ *   that finishes late (the user has chosen something else since) never replaces what is on the
+ *   map, even when the user chose the same trek again in between (ADR-026).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchRoute, fetchRouteIndex, type RouteSummary } from './loadRoutes';
@@ -26,6 +27,10 @@ export interface RoutesState {
   select: (id: string) => void;
 }
 
+/**
+ * Loads the route index, selects the first route, and lets the trek selector choose another.
+ * App calls it once and passes the result to RouteLayer (the globe) and TrekPanel (the panel).
+ */
 export function useRoutes(): RoutesState {
   const [status, setStatus] = useState<RoutesStatus>('loading');
   const [routes, setRoutes] = useState<RouteSummary[]>([]);
@@ -34,10 +39,14 @@ export function useRoutes(): RoutesState {
 
   // useRef keeps values between renders without causing a re-render when they change.
   const cache = useRef(new Map<string, RouteFile>()); // route files already downloaded
-  const latestRequest = useRef<string | null>(null); // the id the user asked for last
+  const latestRequest = useRef(0); // number of the newest select() call
 
+  // useCallback with [] keeps `select` the SAME function on every render. That matters because
+  // the effect below lists it as a dependency (the hooks lint rule requires that): a new function
+  // each render would re-run the effect and download the index again and again.
   const select = useCallback((id: string) => {
-    latestRequest.current = id;
+    const request = latestRequest.current + 1;
+    latestRequest.current = request;
     setSelectedId(id);
 
     const cached = cache.current.get(id);
@@ -57,18 +66,20 @@ export function useRoutes(): RoutesState {
         // Check the file's shape HERE, inside try: if it were only discovered while rendering,
         // the error would blank the whole page (including the medical disclaimer).
         routeDrawing(file, 'en');
-        cache.current.set(id, file);
-        if (latestRequest.current !== id) return; // the user has picked another route since
+        cache.current.set(id, file); // a good file is worth keeping even if it arrived late
+        if (latestRequest.current !== request) return; // a newer select() call has happened
         setCurrent(file);
         setStatus('ready');
       } catch (error) {
         console.error(`Could not load route ${id}`, error);
-        if (latestRequest.current === id) setStatus('error');
+        if (latestRequest.current === request) setStatus('error');
       }
     }
     void load();
   }, []);
 
+  // Runs once after the first render (twice in development, where React's StrictMode mounts,
+  // cleans up and mounts again to find missing cleanups; the `cancelled` flag makes that safe).
   useEffect(() => {
     let cancelled = false; // set by the cleanup, so a late answer after unmount is ignored
     fetchRouteIndex()
@@ -84,7 +95,7 @@ export function useRoutes(): RoutesState {
       });
     return () => {
       cancelled = true;
-      latestRequest.current = null; // also ignore any route download still running
+      latestRequest.current += 1; // also ignore any route download still running
     };
   }, [select]);
 

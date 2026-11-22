@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { saveScreenshot } from './screenshot';
 
 const fixture = (name: string) =>
   readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf-8');
@@ -36,9 +37,7 @@ test('shows the selected route and counts its stops (synthetic fixture)', async 
   });
 
   if (process.env.UPDATE_SCREENSHOTS === '1') {
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2500); // let the 1.5 s camera flight to the route finish
-    await page.screenshot({ path: SCREENSHOT });
+    await saveScreenshot(page, SCREENSHOT);
   }
 });
 
