@@ -46,6 +46,11 @@ export interface PointOnLine {
  * smallest offset wins, and the distance along the line is cumulative[i] + t × (segment length).
  * A flat map is accurate enough because trail segments are short (metres to a few hundred metres).
  *
+ * Ties: if two segments are exactly as near, the EARLIER one wins (the test is `<`, not `<=`).
+ * A stop near a place the trail passes twice (a switchback, or the way back of an out-and-back
+ * trek) can therefore land on the wrong pass. The pipeline refuses loops and branches and keeps
+ * stops within 500 m of the trail, which makes this rare; check real routes by eye (ADR-027).
+ *
  * `cumulative` (from cumulativeDistancesM) can be passed in when it was already computed.
  */
 export function nearestPointOnLine(
@@ -66,9 +71,12 @@ export function nearestPointOnLine(
     const px = (point[0] - lonA) * xScale;
     const py = (point[1] - latA) * METRES_PER_DEGREE;
 
+    // t = how far along A→B the foot of the perpendicular from P is (0 = at A, 1 = at B).
     const lengthSquared = bx * bx + by * by;
-    // Two identical points make a zero-length segment: its only point is A (t = 0).
-    const t = lengthSquared > 0 ? Math.min(1, Math.max(0, (px * bx + py * by) / lengthSquared)) : 0;
+    let t = 0; // two identical points make a zero-length segment: its only point is A
+    if (lengthSquared > 0) t = (px * bx + py * by) / lengthSquared;
+    if (t < 0) t = 0; // the foot is before A: the nearest point of the SEGMENT is A
+    if (t > 1) t = 1; // the foot is past B: the nearest point is B
     const offsetM = Math.hypot(px - t * bx, py - t * by);
 
     if (offsetM < best.offsetM) {
@@ -108,6 +116,8 @@ export interface StageStop {
   /** The day the trekker arrives (the first stop is day 1). */
   day: number;
   position: LonLat;
+  /** The stop's cited altitude in metres (from the route file). */
+  altitudeM: number;
 }
 
 /** The part of the trail walked on one day: from the previous stop to `toStopId`. */
@@ -120,6 +130,12 @@ export interface Stage {
   lengthM: number;
   /** The trail between the two stops, starting at the previous stop. */
   path: LonLat[];
+  /**
+   * The higher of the two stops' altitudes, in metres. The trail itself carries no heights, so
+   * StageLayer aims the camera at this height; aiming at sea level leaves the camera on the
+   * ground, facing a hillside, on a short stage high up.
+   */
+  topAltitudeM: number;
 }
 
 /**
@@ -142,6 +158,7 @@ export function splitIntoStages(line: readonly LonLat[], stops: readonly StageSt
       day: inDayOrder[k].day,
       lengthM: Math.abs(toM - fromM),
       path: sliceLine(line, fromM, toM, cumulative),
+      topAltitudeM: Math.max(inDayOrder[k - 1].altitudeM, inDayOrder[k].altitudeM),
     });
   }
   return stages;

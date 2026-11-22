@@ -121,7 +121,12 @@ describe('routeStages', () => {
     };
     const stages = routeStages(withSecondStop);
     expect(stages).toHaveLength(1);
-    expect(stages[0]).toMatchObject({ fromStopId: 'stop-a', toStopId: 'stop-b', day: 3 });
+    expect(stages[0]).toMatchObject({
+      fromStopId: 'stop-a',
+      toStopId: 'stop-b',
+      day: 3,
+      topAltitudeM: 3440, // both synthetic stops are at 3,440 m
+    });
     expect(stages[0].path).toEqual([
       [85.0, 28.0],
       [85.2, 28.1],
@@ -130,5 +135,12 @@ describe('routeStages', () => {
 
   it('a route with one stop has no stages', () => {
     expect(routeStages(testRoute)).toEqual([]);
+  });
+
+  it('throws for a trail with only one point (useRoutes then shows "could not load")', () => {
+    const broken = structuredClone(testRoute);
+    const route = broken.features[0];
+    if (route.geometry.type === 'LineString') route.geometry.coordinates = [[85.0, 28.0]];
+    expect(() => routeStages(broken)).toThrow(RangeError);
   });
 });

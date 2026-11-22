@@ -37,8 +37,10 @@ test('pressing a day highlights its stage; pressing again or changing trek remov
   await expect(day4).toContainText('7.4 km along the trail from the previous stop');
   await expect(day2).toHaveAttribute('aria-pressed', 'false');
 
-  // Keyboard: Tab to the button and press Enter.
-  await day2.focus();
+  // Keyboard only: from the trek selector, Tab reaches the first day button; Enter presses it.
+  await page.getByLabel('Choose a trek').focus();
+  await page.keyboard.press('Tab');
+  await expect(day2).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(day2).toHaveAttribute('aria-pressed', 'true');
   await expect(list).toHaveAttribute('data-drawn-stage', 'stop-d', { timeout: 30_000 });

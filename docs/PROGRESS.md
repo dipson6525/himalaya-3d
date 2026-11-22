@@ -19,8 +19,14 @@ what the TEAM must do next, open questions.
 - First version drew the highlight UNDER the trail (zIndex does not cross data sources); found by
   looking at the screenshot, fixed by data-source order.
 - Screenshot `docs/screenshots/m3-daily-stage-synthetic.png` (synthetic data).
+- Code review found: (1) the camera aimed at sea level, so on a short stage high up it ended on
+  the ground facing a hillside. Measured with World Terrain on a temporary 1.4 km test stage near
+  4,900 m (not committed): 13 m above the ground before, about 3 km above after aiming at the
+  higher stop's altitude. (2) A malformed file could now crash the page while rendering; the
+  stage maths now runs inside `useRoutes`' `try`. Also: a cos(latitude) test at 60 °N, separate
+  stage lengths, 0 m stages, a real Tab-key test, the stage choice keyed by trek, plainer clamps.
 
-**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 94
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 99
 passed; `npm run e2e` 9 passed. Mutation check: removing the "clear the stage on another trek"
 line made `stages.spec.ts` fail.
 

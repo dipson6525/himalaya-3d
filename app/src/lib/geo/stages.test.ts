@@ -53,6 +53,22 @@ describe('nearestPointOnLine', () => {
     expect(result.offsetM).toBeCloseTo(STEP_M / 10, 1);
   });
 
+  it('shrinks longitude by cos(latitude): a 45° diagonal at 60 °N', () => {
+    // At 60 °N, cos = 0.5, so 0.02° of longitude = 0.01° of latitude = 1,111.95 m: the segment
+    // (0, 60) → (0.02, 60.01) is a 45° diagonal on the flat map. P = (0.02, 60) sits below B, so
+    // its foot is halfway: t = 0.5. Haversine length 1,572.41 m → along = 786.21 m, offset 786.27 m.
+    // (Without the cos, t would be 0.8; with cos of 60 taken in degrees by mistake, 0.78.)
+    const result = nearestPointOnLine(
+      [
+        [0, 60],
+        [0.02, 60.01],
+      ],
+      [0.02, 60],
+    );
+    expect(result.distanceM).toBeCloseTo(786.21, 1);
+    expect(result.offsetM).toBeCloseTo(786.27, 1);
+  });
+
   it('survives a zero-length segment (the same point twice)', () => {
     const line: LonLat[] = [
       [0, 0],
@@ -99,7 +115,12 @@ describe('sliceLine', () => {
 });
 
 describe('splitIntoStages', () => {
-  const stop = (id: string, day: number, position: LonLat): StageStop => ({ id, day, position });
+  const stop = (id: string, day: number, position: LonLat, altitudeM = 1000): StageStop => ({
+    id,
+    day,
+    position,
+    altitudeM,
+  });
 
   it('N stops give N − 1 stages, each walked on the arrival day of its end stop', () => {
     // Given out of order on purpose: the function sorts by day. Day 3 is a rest day.
@@ -120,14 +141,40 @@ describe('splitIntoStages', () => {
     ]);
   });
 
-  it('stage lengths add up to the trail length when the first and last stops are at the ends', () => {
+  it('gives each stage its own length, adding up to the trail length', () => {
+    // b lands 1.2 × STEP_M along the L (the worked example above), c at the end (2 × STEP_M).
     const stages = splitIntoStages(L_SHAPE, [
       stop('a', 1, [0, 0]),
       stop('b', 2, [0.009, 0.002]),
       stop('c', 3, [0.01, 0.01]),
     ]);
+    expect(stages[0].lengthM).toBeCloseTo(1.2 * STEP_M, 1); // a → b = 1,334.34 m
+    expect(stages[1].lengthM).toBeCloseTo(0.8 * STEP_M, 1); // b → c = 889.56 m
     const total = stages.reduce((sum, s) => sum + s.lengthM, 0);
     expect(total).toBeCloseTo(2 * STEP_M, 1);
+  });
+
+  it('remembers the higher of the two stops altitudes (where the camera aims)', () => {
+    const stages = splitIntoStages(STRAIGHT, [
+      stop('low', 1, [0, 0], 2800),
+      stop('high', 2, [0.01, 0], 3440),
+      stop('down', 3, [0.02, 0], 3000),
+    ]);
+    expect(stages.map((s) => s.topAltitudeM)).toEqual([3440, 3440]);
+  });
+
+  it('two stops at the same place on the trail give a 0 m stage (TrekPanel shows no button)', () => {
+    // Both stops lie past the end of the line, so both land on its last point.
+    const stages = splitIntoStages(STRAIGHT, [stop('a', 1, [0.021, 0]), stop('b', 2, [0.022, 0])]);
+    expect(stages[0].lengthM).toBe(0);
+    expect(stages[0].path).toEqual([
+      [0.02, 0],
+      [0.02, 0],
+    ]);
+  });
+
+  it('throws on a line with fewer than 2 points, so useRoutes can report a bad file', () => {
+    expect(() => splitIntoStages([[0, 0]], [stop('a', 1, [0, 0])])).toThrow(RangeError);
   });
 
   it('an out-and-back trek walks the trail backwards on the way down', () => {

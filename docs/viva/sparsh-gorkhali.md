@@ -276,6 +276,12 @@ source, then the camera flies to it. *Drawing order lesson:* the first version u
 the stage's data source is raised to the top, and `RouteLayer` lowers the trail's to the bottom
 every time it redraws (ADR-027).
 
+**Camera height (found in code review).** The trail has no heights, so the sphere the camera
+flies to was at sea level. On a short stage high up (1.4 km near 4,900 m, measured with World
+Terrain) the camera ended 13 m above the ground, facing a hillside. Now it aims at the higher of
+the two stops' cited altitudes and stays at least 4 km away at 45°: height ≈ altitude + 4,000 ×
+sin 45° ≈ altitude + 2,828 m. On the same test stage it ended about 3 km above the terrain.
+
 **Limits.** Map distance along the simplified line: real walking is longer (slopes, small
 zig-zags removed by Douglas–Peucker). If the trail passes the same place twice, a stop can land
 on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these stages.
@@ -367,6 +373,12 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
 32. **Why was the highlight hidden at first, and how was it fixed?** — `zIndex` only orders
     lines within one data source; the trail's data source was drawn later. Fixed by raising the
     stage's data source to the top and keeping the trail's at the bottom.
+33. **Where does the camera fly for a stage, and why not just use the trail points?** — The trail
+    points have no height (sea level). Aiming there on a high, short stage leaves the camera on
+    the ground. It aims at the higher stop's cited altitude, 4 km away at 45° or more.
+34. **A route file is broken. Why does the page not go blank?** — `useRoutes` runs both
+    `routeDrawing` and `routeStages` on the file inside `try` before using it; if either throws,
+    the status says "could not load" and the disclaimer stays.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -412,7 +424,9 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
 - **Issue #49 (2026-11-22):** Claude Code wrote `stages.ts` (+ test), `StageLayer.tsx`, the
   day buttons, `stages.spec.ts`, ADR-027 and this section. The first highlight was drawn under
   the trail; this was found by looking at the screenshot and fixed. A unit test caught a
-  duplicated end point in `sliceLine`, also fixed.
+  duplicated end point in `sliceLine`, also fixed. A code-reviewer subagent then found the
+  sea-level camera aim and a crash path for malformed files; both fixed, the camera fix measured
+  with World Terrain on a temporary test stage.
 - **What you must still do:** read the four engine files, run the tests and the app yourself,
   and do exercises 2, 5–8 and 11–13 by hand.
 
@@ -428,4 +442,4 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
 - 2026-11-21 — M3 #15: route drawing walkthrough (ViewerContext, data source, popups, async
   safety), Q23–26, exercises 9–10.
 - 2026-11-22 — M3 #49: daily stages walkthrough (projection worked example, stages, slicing,
-  drawing order), Q27–32, exercises 11–13, AI use.
+  drawing order), Q27–32, exercises 11–13, AI use. After code review: camera height, Q33–34.

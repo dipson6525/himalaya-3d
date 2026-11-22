@@ -30,12 +30,25 @@ export function App() {
   const [drawnStops, setDrawnStops] = useState(0);
 
   // Daily stages (#49). Computed from the route file, never stored separately ("derived state"),
-  // and only recomputed when the route changes (useMemo). The selected stage is remembered by the
-  // id of the stop it ends at; TrekPanel clears it when another trek is chosen.
+  // and only recomputed when the route changes (useMemo).
   const currentRoute = routes.current;
   const stages = useMemo(() => (currentRoute ? routeStages(currentRoute) : []), [currentRoute]);
-  const [selectedStageStopId, setSelectedStageStopId] = useState<string | null>(null);
+
+  // The highlighted stage is remembered as "which trek, which end stop". Different treks can
+  // share stop ids (two treks may both stop at the same village), so the trek id is checked too:
+  // a choice made on one trek can never highlight a stage on another. (TrekPanel also clears the
+  // choice when the user picks another trek, so it does not come back on return.)
+  const [stageChoice, setStageChoice] = useState<{ routeId: string; toStopId: string } | null>(
+    null,
+  );
+  const selectedStageStopId =
+    stageChoice && stageChoice.routeId === routes.selectedId ? stageChoice.toStopId : null;
   const selectedStage = stages.find((stage) => stage.toStopId === selectedStageStopId) ?? null;
+
+  /** Called by TrekPanel: highlight the stage ending at `toStopId` (null = none). */
+  function selectStage(toStopId: string | null) {
+    setStageChoice(toStopId && routes.selectedId ? { routeId: routes.selectedId, toStopId } : null);
+  }
   // Which stage StageLayer has really drawn (read by the e2e test, like drawnStops).
   const [drawnStage, setDrawnStage] = useState<string | null>(null);
 
@@ -50,7 +63,7 @@ export function App() {
           drawnStops={drawnStops}
           stages={stages}
           selectedStageStopId={selectedStageStopId}
-          onSelectStage={setSelectedStageStopId}
+          onSelectStage={selectStage}
           drawnStage={drawnStage}
         />
       ),

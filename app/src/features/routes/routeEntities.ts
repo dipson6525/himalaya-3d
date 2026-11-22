@@ -94,6 +94,7 @@ export function routeStages(file: RouteFile): Stage[] {
       id: stop.properties.id,
       day: stop.properties.day,
       position: stop.geometry.coordinates,
+      altitudeM: stop.properties.altitude_m,
     })),
   );
 }

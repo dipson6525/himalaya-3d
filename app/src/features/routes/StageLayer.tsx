@@ -5,6 +5,14 @@
  * The stage is one extra polyline, wider than the trail, yellow with a black edge, clamped to the
  * ground like the trail. The camera then flies to it.
  *
+ * Camera height: the trail has no heights, so points built from it sit at sea level. Aiming at
+ * sea level on a short stage high in the mountains puts the camera's target below the terrain
+ * (code review found this). Measured with World Terrain on a 1.4 km test stage near 4,900 m: the
+ * camera ended 13 m above the ground, pressed against the hillside, and the stage was not visible.
+ * So the camera aims at the higher of the two stops' cited altitudes (Stage.topAltitudeM) and
+ * stays at least 4 km away at 45°, about 2.8 km above that stop; on the same test stage it ended
+ * about 3 km above the terrain under it, with the whole stage in view.
+ *
  * Drawing order: Cesium draws data sources in the order of viewer.dataSources, later ones on top.
  * (A polyline's zIndex only orders lines INSIDE one data source, so it cannot help here; a first
  * version used it and the trail covered the highlight.) So the stage gets its own data source,
@@ -69,14 +77,18 @@ export function StageLayer({ stage, onDrawn }: StageLayerProps) {
       onDrawn?.(stage.toStopId);
     });
 
-    // Look at the stage from the south, 45° down, from three times its radius (at least 3 km).
-    const sphere = BoundingSphere.fromPoints(positions);
+    // Look at the stage from the south, 45° down, from three times its radius (at least 4 km),
+    // aiming at the higher stop's altitude instead of sea level (see the header comment).
+    const aimPoints = Cartesian3.fromDegreesArrayHeights(
+      stage.path.flatMap(([lon, lat]) => [lon, lat, stage.topAltitudeM]),
+    );
+    const sphere = BoundingSphere.fromPoints(aimPoints);
     viewer.camera.flyToBoundingSphere(sphere, {
       duration: 1.5,
       offset: new HeadingPitchRange(
         0,
         CesiumMath.toRadians(-45),
-        Math.max(sphere.radius * 3, 3000),
+        Math.max(sphere.radius * 3, 4000),
       ),
     });
 

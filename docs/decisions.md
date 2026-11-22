@@ -386,8 +386,16 @@ and the stops with their arrival day (ADR-017); nothing says where each day star
 - The highlight (`StageLayer`) is its own Cesium data source raised to the top, and `RouteLayer`
   keeps the trail's data source at the bottom. A polyline `zIndex` was tried first, but it only
   orders lines inside one data source, and the trail covered the highlight.
-- In the Trek tab, every stop after the first is a toggle button (`aria-pressed`); choosing
-  another trek clears the highlight.
+- The camera aims at the higher of the two stops' cited altitudes, not at sea level (the trail
+  has no heights), and stays at least 4 km away at 45°. Measured with World Terrain on a 1.4 km
+  test stage near 4,900 m: aiming at sea level left the camera 13 m above the ground facing a
+  hillside; the fix put it about 3 km above the terrain with the stage in view.
+- In the Trek tab, every stop after the first is a toggle button (`aria-pressed`), except a stop
+  at the same place on the trail as the previous one (a 0 m stage). The chosen stage is stored as
+  {trek id, end-stop id}, so it can never highlight a stage on another trek that shares a stop
+  id; choosing another trek also clears it.
+- `useRoutes` runs `routeStages` on every downloaded file inside its `try`, like `routeDrawing`,
+  so a file that would make the stage maths throw shows "could not load" instead of a blank page.
 **Alternatives:** split the trail in the Python pipeline and store one LineString per day (more
 schema, and the app would still need the maths for the flythrough's "jump to day N", #20);
 nearest *vertex* instead of nearest point on a segment (simpler, but a stop between two far-apart

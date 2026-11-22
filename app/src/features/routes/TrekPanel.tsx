@@ -84,7 +84,11 @@ export function TrekPanel({
       {stops.length > 0 && (
         <>
           <h2 className="panel-heading">{t('stops.heading', language)}</h2>
-          {stages.length > 0 && <p className="hint">{t('stops.hint', language)}</p>}
+          {stages.length > 0 && (
+            <p className="hint" id="stage-hint">
+              {t('stops.hint', language)}
+            </p>
+          )}
           {/* An ordered list, but without the 1. 2. 3. markers: they would clash with the day
               numbers ("3. Day 4 …"). Screen readers still announce it as a list. */}
           <ol className="stop-list" data-testid="stop-list" data-drawn-stage={drawnStage ?? ''}>
@@ -95,8 +99,10 @@ export function TrekPanel({
                 altitude: stop.properties.altitude_m.toLocaleString('en'),
               });
               const stage = stages.find((s) => s.toStopId === stop.properties.id);
-              if (!stage) {
-                // The first stop: the trek starts here, no stage is walked to reach it.
+              // No button for the first stop (the trek starts there, no stage leads to it), nor
+              // for a stop at the same place on the trail as the one before (a 0 m stage: there
+              // would be nothing to highlight).
+              if (!stage || stage.lengthM === 0) {
                 return (
                   <li key={stop.properties.id}>
                     <span className="stop-text">{text}</span>
@@ -110,6 +116,7 @@ export function TrekPanel({
                     type="button"
                     className="stop-button"
                     aria-pressed={pressed}
+                    aria-describedby="stage-hint"
                     onClick={() => onSelectStage(pressed ? null : stage.toStopId)}
                   >
                     <span className="stop-text">{text}</span>
