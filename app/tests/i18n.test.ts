@@ -27,3 +27,31 @@ describe('i18n dictionaries', () => {
     expect(t('app.title', 'ne')).toBe(ne['app.title']);
   });
 });
+
+describe('t() placeholders', () => {
+  it('fills {name}-style holes from the values', () => {
+    const text = t('routes.showing', 'en', { name: 'Test Route', count: 2 });
+    expect(text).toContain('Test Route');
+    expect(text).toContain('2 overnight stops');
+  });
+
+  it('uses the same values in Nepali, where the holes sit elsewhere', () => {
+    expect(t('routes.showing', 'ne', { name: 'परीक्षण मार्ग', count: 2 })).toContain('परीक्षण मार्ग');
+  });
+
+  it('only uses values the caller passed, not names inherited by every object', () => {
+    // 'constructor' exists on every JavaScript object; it must not count as a value.
+    expect(t('routes.showing', 'en', { count: 2 })).toContain('{name}');
+  });
+
+  it('leaves a hole visible when its value is missing', () => {
+    expect(t('routes.showing', 'en', { name: 'X' })).toContain('{count}');
+  });
+
+  it('every placeholder in en.json also appears in ne.json, and the other way round', () => {
+    const holes = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+    for (const key of Object.keys(en) as (keyof typeof en)[]) {
+      expect(holes(ne[key]), key).toEqual(holes(en[key]));
+    }
+  });
+});

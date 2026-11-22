@@ -27,11 +27,12 @@ import {
   Viewer,
   buildModuleUrl,
 } from 'cesium';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n';
 import { makeHomeButtonShowNepal, viewNepal } from './camera';
 import { hasCesiumToken } from './cesiumSetup';
 import { addMapDataCredits } from './credits';
+import { ViewerContext } from './ViewerContext';
 
 /**
  * Build the Viewer options.
@@ -64,21 +65,29 @@ function buildViewerOptions(): Viewer.ConstructorOptions {
   return { ...widgets, baseLayer: ImageryLayer.fromProviderAsync(offlineImagery) };
 }
 
-/** The 3D globe. Renders a notice on top when no Cesium ion token is configured. */
-export function CesiumGlobe() {
+/**
+ * The 3D globe. Renders a notice on top when no Cesium ion token is configured.
+ * `children` (for example RouteLayer) are rendered inside ViewerContext, so they can draw on the
+ * globe with useViewer(). They get null until the Viewer exists.
+ */
+export function CesiumGlobe({ children }: { children?: ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    let viewer: Viewer | undefined;
+    let created: Viewer | undefined;
     let removeHomeButtonHandler = () => {};
     try {
-      viewer = new Viewer(container, buildViewerOptions());
-      viewNepal(viewer);
-      addMapDataCredits(viewer);
-      removeHomeButtonHandler = makeHomeButtonShowNepal(viewer);
+      created = new Viewer(container, buildViewerOptions());
+      viewNepal(created);
+      addMapDataCredits(created);
+      removeHomeButtonHandler = makeHomeButtonShowNepal(created);
+      // Share the Viewer with the children. Cesium lives outside React, so handing its object to
+      // React after creating it is exactly what an effect is for.
+      setViewer(created);
     } catch (error) {
       // Cesium has already drawn its own error panel (e.g. "WebGL is not supported")
       // inside the container, so the user sees what went wrong. We just log it.
@@ -86,8 +95,12 @@ export function CesiumGlobe() {
     }
 
     return () => {
+      // Tell the children there is no Viewer any more. (When the whole page is removed React runs
+      // this cleanup before the children's, so destroy() below happens first; the children are
+      // protected by checking viewer.isDestroyed() in their own cleanups.)
+      setViewer(null);
       removeHomeButtonHandler();
-      viewer?.destroy();
+      created?.destroy();
     };
   }, []);
 
@@ -99,6 +112,7 @@ export function CesiumGlobe() {
         </p>
       )}
       <div ref={containerRef} className="globe-canvas" data-testid="cesium-container" />
+      <ViewerContext.Provider value={viewer}>{children}</ViewerContext.Provider>
     </div>
   );
 }

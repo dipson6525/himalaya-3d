@@ -234,6 +234,8 @@ def test_build_route_end_to_end_offline(tmp_path):
     assert report["ways"] == 2
     assert report["points_after"] <= report["points_before"]
     assert schema.validate_file(out_file, KNOWN_SOURCES) == []
+    index = json.loads((routes / "index.json").read_text(encoding="utf-8"))
+    assert [route["id"] for route in index["routes"]] == ["test-route"]  # index refreshed
     first_position = json.loads(out_file.read_text(encoding="utf-8"))["features"][0]["geometry"]
     assert first_position["coordinates"][0] == [85.0, 28.0]  # starts at the first stop
     assert b"\r\n" not in out_file.read_bytes()  # LF line endings on every OS
