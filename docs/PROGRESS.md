@@ -5,6 +5,37 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-22 · M3 #49 Daily stages (owner: Sparsh)
+
+**Done**
+
+- PR #51 (#16 trek selector) merged after green CI (ADR-021).
+- `lib/geo/stages.ts`: each stop is put on the trail at its nearest point; the trail between two
+  consecutive stops is that day's stage; out-and-back treks are handled; lengths come from the
+  haversine table (#18). Hand-checkable Vitest cases on the equator (0.01° = 1,111.95 m).
+- Trek tab: every stop after the first is a button with "N km along the trail from the previous
+  stop" (computed). Pressing it highlights that stage in yellow on the globe and flies the camera
+  to it; pressing again removes it; another trek clears it (ADR-027).
+- First version drew the highlight UNDER the trail (zIndex does not cross data sources); found by
+  looking at the screenshot, fixed by data-source order.
+- Screenshot `docs/screenshots/m3-daily-stage-synthetic.png` (synthetic data).
+- Code review found: (1) the camera aimed at sea level, so on a short stage high up it ended on
+  the ground facing a hillside. Measured with World Terrain on a temporary 1.4 km test stage near
+  4,900 m (not committed): 13 m above the ground before, about 3 km above after aiming at the
+  higher stop's altitude. (2) A malformed file could now crash the page while rendering; the
+  stage maths now runs inside `useRoutes`' `try`. Also: a cos(latitude) test at 60 °N, separate
+  stage lengths, 0 m stages, a real Tab-key test, the stage choice keyed by trek, plainer clamps.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 99
+passed; `npm run e2e` 9 passed. Mutation check: removing the "clear the stage on another trek"
+line made `stages.spec.ts` fail.
+
+**Team next**
+
+- Sparsh: read `stages.ts` and `StageLayer.tsx`; work the projection example by hand (exercise 11).
+- When real routes arrive (#9–#12), look at every stage on the globe and fix any stop that lands
+  on the wrong pass of the trail (ADR-027 limits).
+
 ## 2026-11-22 · M3 #16 Trek selector panel (owner: Dipson)
 
 **Done**

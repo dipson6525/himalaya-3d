@@ -20,5 +20,7 @@
   "stops.heading": "Overnight stops",
   "stops.item": "Day {day} · {name} · {altitude} m",
   "plan.comingSoon": "The itinerary editor and acclimatization warnings arrive with issue #24.",
-  "layers.comingSoon": "Live earthquake and weather layers arrive with issues #25 and #26."
+  "layers.comingSoon": "Live earthquake and weather layers arrive with issues #25 and #26.",
+  "stops.hint": "Choose a day to highlight the trail walked that day.",
+  "stops.stageLength": "{km} km along the trail from the previous stop"
 }

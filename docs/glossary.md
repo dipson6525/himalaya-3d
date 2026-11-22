@@ -22,9 +22,11 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **Haversine formula** | Great-circle distance between two lat/lon points on a sphere (M4). |
 | **Heading and pitch** | Camera angles: heading = compass direction (0° north, 90° east); pitch = up/down angle (0° level, −90° straight down). |
 | **i18n** | Internationalisation — making all text swappable per language. |
+| **Daily stage** | The part of the trail walked on one day: from one overnight stop to the next (`lib/geo/stages.ts`). |
 | **Landmark** | A page region a screen reader can jump to (banner, main, contentinfo = footer, …). `<header>`, `<main>` and `<footer>` get one automatically. |
 | **Roving tabindex** | Only one item of a group (the selected tab) has `tabIndex=0`; the others have `-1`, so Tab reaches the group once and arrow keys move inside it. |
 | **Imagery** | The map picture draped over the globe (satellite or drawn map). |
+| **Projection onto a line** | Finding the point of a line nearest to a given point: for each segment, t = ((P − A)·(B − A)) / \|B − A\|², clamped to 0…1. |
 | **ODbL** | Open Database License, OpenStreetMap's licence: credit OSM and share-alike derived databases. |
 | **linemerge** | shapely function that joins lines sharing an end point into one line (flipping them where needed). |
 | **Overpass API** | A read-only API for querying OpenStreetMap data. Free and shared — query politely. |

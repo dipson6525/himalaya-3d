@@ -7,40 +7,21 @@
  * the keyboard, because "keyboard accessible" is an acceptance criterion of #16.
  * Screenshots are written only with UPDATE_SCREENSHOTS=1 (ADR-015).
  */
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { saveScreenshot } from './screenshot';
-
-const fixture = (name: string) =>
-  readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf-8');
+import { fixture, serveFixtures } from './serveFixtures';
 
 const SCREENSHOT = fileURLToPath(
   new URL('../../docs/screenshots/m3-trek-selector-synthetic.png', import.meta.url),
 );
-
-/**
- * Answer data/routes/ requests from the fixtures. Files named in `missing` get a 404.
- * Returns a counter of how often each route file was downloaded.
- */
-async function serveFixtures(page: Page, missing: string[] = []) {
-  const downloads: Record<string, number> = {};
-  await page.route('**/data/routes/*', (route) => {
-    const name = new URL(route.request().url()).pathname.split('/').pop() ?? '';
-    downloads[name] = (downloads[name] ?? 0) + 1;
-    if (missing.includes(name)) return route.fulfill({ status: 404 });
-    const type = name.endsWith('.json') ? 'application/json' : 'application/geo+json';
-    return route.fulfill({ contentType: type, body: fixture(name) });
-  });
-  return downloads;
-}
 
 test('choose another trek with the keyboard; the stop list and globe follow', async ({ page }) => {
   const downloads = await serveFixtures(page);
   await page.goto('./');
 
   const status = page.getByTestId('route-status');
-  const stops = page.getByRole('list').filter({ hasText: 'Test Stop' }).getByRole('listitem');
+  const stops = page.getByTestId('stop-list').locator('.stop-text'); // name line of each stop
   await expect(status).toHaveText(
     'Showing Test Route: 2 overnight stops. Click a marker for details.',
   );

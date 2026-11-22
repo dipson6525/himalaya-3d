@@ -61,6 +61,7 @@ flowchart LR
   Globe --> Notice["No-token notice<br/>(exists, inside CesiumGlobe)"]:::sparsh
   Globe --> RouteLayer["RouteLayer #15<br/>trail clamped to ground"]:::sparsh
   Globe --> Stops["StopMarkers + StopPopup #15"]:::sparsh
+  Globe --> StageLayer["StageLayer (exists) #49<br/>highlights one day"]:::sparsh
   Globe --> Fly["FlythroughCamera #19<br/>(no UI of its own)"]:::sparsh
   Globe --> HoverMarker["ProfileHoverMarker #22"]:::dipson
   Globe --> Quakes["EarthquakeLayer #25"]:::dipson
@@ -72,7 +73,7 @@ flowchart LR
   App --> Panel["SidePanel (exists) #16<br/>tabs: Trek · Plan · Layers"]:::dipson
   Panel --> TrekTab["TrekPanel (exists) #16"]:::dipson
   TrekTab --> Selector["TrekSelector (element today)<br/>native select #16"]:::dipson
-  TrekTab --> StopList["StopList (element today) #16"]:::dipson
+  TrekTab --> StopList["StopList (element today) #16<br/>day buttons #49"]:::dipson
   TrekTab --> FlyControls["FlythroughControls #20<br/>play · pause · speed · day"]:::sparsh
   Panel --> PlanTab["PlanTab"]:::unique
   PlanTab --> PlanNote["Disclaimer banner"]:::dipson
@@ -96,6 +97,7 @@ flowchart LR
 | LanguageToggle | `app/src/ui/` | Dipson | FR9 | #27 |
 | CesiumGlobe (with the no-token notice), ViewerContext | `app/src/engine/` | Sparsh | FR1 | #14, #15 |
 | RouteLayer, StopMarkers, StopPopup | `app/src/features/routes/` | Sparsh | FR2 | #15 |
+| StageLayer, stage maths (`lib/geo/stages.ts`) | `app/src/features/routes/`, `app/src/lib/geo/` | Sparsh | FR2 | #49 |
 | TrekPanel (TrekSelector + StopList) | `app/src/features/routes/` | Dipson | FR2 | #16 |
 | FlythroughCamera, FlythroughControls | `app/src/engine/`, `app/src/features/routes/` | Sparsh | FR3 | #19, #20 |
 | ElevationProfile, ProfileHoverMarker | `app/src/features/elevation/` | Dipson | FR4 | #21, #22 |

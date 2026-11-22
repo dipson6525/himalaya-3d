@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { routeFileUrl, splitRoute } from './loadRoutes';
-import { escapeHtml, routeDrawing, stopDescriptionHtml } from './routeEntities';
+import { escapeHtml, routeDrawing, routeStages, stopDescriptionHtml } from './routeEntities';
 import type { RouteFile, StopProperties } from './types';
 
 const stopA: StopProperties = {
@@ -103,5 +103,44 @@ describe('loadRoutes helpers', () => {
 
   it('refuses a file without a route feature', () => {
     expect(() => splitRoute({ type: 'FeatureCollection', features: [] })).toThrow();
+  });
+});
+
+describe('routeStages', () => {
+  it('passes the trail and the stops (id, day, position) to the stage maths', () => {
+    const withSecondStop: RouteFile = {
+      ...testRoute,
+      features: [
+        ...testRoute.features,
+        {
+          type: 'Feature',
+          properties: { ...stopA, id: 'stop-b', day: 3 },
+          geometry: { type: 'Point', coordinates: [85.2, 28.1] },
+        },
+      ],
+    };
+    const stages = routeStages(withSecondStop);
+    expect(stages).toHaveLength(1);
+    expect(stages[0]).toMatchObject({
+      fromStopId: 'stop-a',
+      toStopId: 'stop-b',
+      day: 3,
+      topAltitudeM: 3440, // both synthetic stops are at 3,440 m
+    });
+    expect(stages[0].path).toEqual([
+      [85.0, 28.0],
+      [85.2, 28.1],
+    ]);
+  });
+
+  it('a route with one stop has no stages', () => {
+    expect(routeStages(testRoute)).toEqual([]);
+  });
+
+  it('throws for a trail with only one point (useRoutes then shows "could not load")', () => {
+    const broken = structuredClone(testRoute);
+    const route = broken.features[0];
+    if (route.geometry.type === 'LineString') route.geometry.coordinates = [[85.0, 28.0]];
+    expect(() => routeStages(broken)).toThrow(RangeError);
   });
 });

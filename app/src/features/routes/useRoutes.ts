@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchRoute, fetchRouteIndex, type RouteSummary } from './loadRoutes';
-import { routeDrawing } from './routeEntities';
+import { routeDrawing, routeStages } from './routeEntities';
 import type { RouteFile } from './types';
 
 export type RoutesStatus = 'loading' | 'ready' | 'error';
@@ -64,8 +64,11 @@ export function useRoutes(): RoutesState {
       try {
         const file = await fetchRoute(id);
         // Check the file's shape HERE, inside try: if it were only discovered while rendering,
-        // the error would blank the whole page (including the medical disclaimer).
+        // the error would blank the whole page (including the medical disclaimer). Both helpers
+        // that App and the layers call while rendering are run once here, so a file that would
+        // make either of them throw is reported as "could not load" instead.
         routeDrawing(file, 'en');
+        routeStages(file);
         cache.current.set(id, file); // a good file is worth keeping even if it arrived late
         if (latestRequest.current !== request) return; // a newer select() call has happened
         setCurrent(file);
