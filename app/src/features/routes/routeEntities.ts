@@ -6,6 +6,7 @@
  * "how" (Cesium calls) there means the text of every popup can be tested in Node.
  */
 import { t, type Language } from '../../i18n';
+import { splitIntoStages, type Stage } from '../../lib/geo/stages';
 import { splitRoute } from './loadRoutes';
 import type { Position, RouteFile, StopProperties } from './types';
 
@@ -79,4 +80,20 @@ export function routeDrawing(file: RouteFile, language: Language): RouteDrawing 
       descriptionHtml: stopDescriptionHtml(stop.properties, language),
     })),
   };
+}
+
+/**
+ * The daily stages of a route (issue #49): the trail cut at each stop, one stage per pair of
+ * consecutive stops. The maths is in lib/geo/stages.ts; this only feeds it the file's data.
+ */
+export function routeStages(file: RouteFile): Stage[] {
+  const { route, stops } = splitRoute(file);
+  return splitIntoStages(
+    route.geometry.coordinates,
+    stops.map((stop) => ({
+      id: stop.properties.id,
+      day: stop.properties.day,
+      position: stop.geometry.coordinates,
+    })),
+  );
 }

@@ -6,13 +6,15 @@
  * screen, as required by our safety rule. The side panel has three tabs (SidePanel.tsx):
  * Trek (choose a trek, see its stops), Plan and Layers (filled in by later issues).
  *
- * Layers that draw on the globe (RouteLayer) are children of CesiumGlobe, so they can reach the
- * Cesium Viewer through ViewerContext (docs/ui-design.md). State shared by the globe and the
- * panel (the selected route) lives here and is passed down as props.
+ * Layers that draw on the globe (RouteLayer, StageLayer) are children of CesiumGlobe, so they can
+ * reach the Cesium Viewer through ViewerContext (docs/ui-design.md). State shared by the globe and
+ * the panel (the selected route, the selected daily stage) lives here and is passed down as props.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CesiumGlobe } from '../engine/CesiumGlobe';
+import { routeStages } from '../features/routes/routeEntities';
 import { RouteLayer } from '../features/routes/RouteLayer';
+import { StageLayer } from '../features/routes/StageLayer';
 import { TrekPanel } from '../features/routes/TrekPanel';
 import { useRoutes } from '../features/routes/useRoutes';
 import { t, type Language } from '../i18n';
@@ -27,11 +29,31 @@ export function App() {
   // How many stop markers RouteLayer has really put on the globe (also read by the e2e test).
   const [drawnStops, setDrawnStops] = useState(0);
 
+  // Daily stages (#49). Computed from the route file, never stored separately ("derived state"),
+  // and only recomputed when the route changes (useMemo). The selected stage is remembered by the
+  // id of the stop it ends at; TrekPanel clears it when another trek is chosen.
+  const currentRoute = routes.current;
+  const stages = useMemo(() => (currentRoute ? routeStages(currentRoute) : []), [currentRoute]);
+  const [selectedStageStopId, setSelectedStageStopId] = useState<string | null>(null);
+  const selectedStage = stages.find((stage) => stage.toStopId === selectedStageStopId) ?? null;
+  // Which stage StageLayer has really drawn (read by the e2e test, like drawnStops).
+  const [drawnStage, setDrawnStage] = useState<string | null>(null);
+
   const tabs: PanelTab[] = [
     {
       id: 'trek',
       labelKey: 'tabs.trek',
-      content: <TrekPanel routes={routes} language={LANGUAGE} drawnStops={drawnStops} />,
+      content: (
+        <TrekPanel
+          routes={routes}
+          language={LANGUAGE}
+          drawnStops={drawnStops}
+          stages={stages}
+          selectedStageStopId={selectedStageStopId}
+          onSelectStage={setSelectedStageStopId}
+          drawnStage={drawnStage}
+        />
+      ),
       hasControls: true,
     },
     {
@@ -59,6 +81,7 @@ export function App() {
         <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
           <CesiumGlobe>
             <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
+            <StageLayer stage={selectedStage} onDrawn={setDrawnStage} />
           </CesiumGlobe>
         </section>
         <SidePanel tabs={tabs} language={LANGUAGE} />

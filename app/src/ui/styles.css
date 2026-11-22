@@ -154,6 +154,57 @@ body,
   line-height: 1.6;
 }
 
+.hint {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.stop-text,
+.stage-length {
+  display: block;
+}
+
+.stage-length {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* A stop you can press to highlight its daily stage (#49). Pressed = yellow bar on the left
+   and a lighter background, so the state does not rely on colour alone. */
+.stop-button {
+  width: 100%;
+  min-height: 44px; /* touch target, ui-design rule 6 */
+  margin: 0.15rem 0;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-left: 4px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stop-button:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.stop-button[aria-pressed='true'] {
+  border-left-color: var(--accent);
+  background: rgb(255 209 102 / 12%);
+}
+
+.stop-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The first stop has no button; indent it like the button text so the list lines up. */
+li > .stop-text {
+  padding: 0.25rem 0.5rem 0.25rem calc(0.5rem + 4px);
+}
+
 .disclaimer {
   padding: 0.5rem 1rem;
   background: var(--warn-bg);

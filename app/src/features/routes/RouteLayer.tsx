@@ -104,6 +104,8 @@ export function RouteLayer({ route, language, onDrawn }: RouteLayerProps) {
         viewer.dataSources.remove(dataSource);
         return;
       }
+      // The trail is the bottom layer: highlights such as StageLayer's must be drawn over it.
+      viewer.dataSources.lowerToBottom(dataSource);
       onDrawn?.(drawing.stops.length);
     });
 
