@@ -24,6 +24,11 @@ keeps English and Nepali in sync, and the requirements and architecture document
 | `app/tests/i18n.test.ts` | Fails if the two dictionaries have different keys | FR9 |
 | `docs/requirements.md`, `docs/architecture.md` | FR1–FR9, NFRs, diagrams | all |
 | `docs/ui-design.md` | Component tree, shared state, wireframes, screen states (the plan for M3–M6) | all, NFR4–6 |
+| `app/src/ui/SidePanel.tsx` | Trek / Plan / Layers tabs (WAI-ARIA tabs pattern) | NFR11 |
+| `app/src/ui/tabKeys.ts` (+ test) | Which tab an arrow / Home / End key moves to (pure function) | NFR11 |
+| `app/src/features/routes/TrekPanel.tsx` | Trek tab: trek selector, status line, stop list | FR2 |
+| `app/src/features/routes/useRoutes.ts` | Route list, selected trek, cache, ignoring late downloads (shared with Sparsh) | FR2 |
+| `app/e2e/trek-selector.spec.ts` | Browser tests: keyboard selection, cache, failed and late downloads, tabs | FR2, NFR11 |
 
 ## Module walkthroughs
 
@@ -110,6 +115,54 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
   Usability evidence comes from the questionnaire in M7.
 - There is no phone layout; the requirement stops at tablet width (NFR4).
 
+### Trek tab and side-panel tabs (issue #16)
+
+**What the user gets.** The side panel has three tabs. The Trek tab has a "Choose a trek" list
+with every route in `data/routes/index.json`, a status line ("Showing … : N overnight stops") and
+the stops as "Day 1 · name · 1,000 m". Choosing a trek redraws the route on the globe and the
+camera flies to it. Plan and Layers show one line saying which issue fills them.
+
+**How the data flows.** `App` calls `useRoutes()` once and passes the result down as props:
+
+```
+useRoutes()  ──routes.current──▶  RouteLayer (draws on the globe, flies the camera)
+     ▲
+     └──routes.select(id)──  TrekPanel <select onChange>   ◀── the user
+```
+
+No context is needed yet: one shared value, two readers, both direct children of `App`
+(ADR-026). `AppState` from the design arrives when a value is needed deep in several branches.
+
+**`useRoutes` step by step** (`select(id)`):
+1. Give this call a number: `request = latestRequest.current + 1`, and store it.
+2. If the file is in the cache (a `Map` in a `useRef`), show it at once. No download.
+3. Otherwise clear the map (`setCurrent(null)`), show "Loading treks…" and download.
+4. When the download arrives: check its shape (inside `try`, so a bad file cannot crash the page
+   and the disclaimer), put it in the cache, and use it **only if `request` is still the
+   newest number**. On an error, show the error only for the newest request.
+
+Why numbers and not trek ids? Choose B (download B1 starts), then A, then B again (B2 starts).
+With ids, B1 and B2 both match "B is selected", so both are used: the camera flight restarts,
+and if B2 fails the page says "could not load" next to a drawn trek. With numbers only B2 counts.
+The code reviewer found this; the e2e test "a download that finishes late…" holds downloads back
+and releases them in the wrong order to prove it.
+
+**`SidePanel` — the WAI-ARIA tabs pattern.**
+- `role="tablist"` (with a name), `role="tab"` buttons with `aria-selected` and `aria-controls`,
+  `role="tabpanel"` divs with `aria-labelledby`. These tell a screen reader "tab 2 of 3, selected".
+- *Roving tabindex:* only the selected tab has `tabIndex=0`; the others `-1`. So Tab enters the
+  row once, and the arrow keys move inside it (`nextTabIndex` in `tabKeys.ts`; `% tabCount` makes
+  it wrap round). Moving also selects ("automatic activation"), fine because showing a panel is
+  instant.
+- Panels that are not selected get the `hidden` attribute instead of being removed, so each
+  tab's `aria-controls` points at an element that exists and the panel keeps its state.
+- Plan and Layers have nothing to focus, so their panel itself gets `tabIndex=0`; otherwise Tab
+  from the tab would jump past the text.
+
+**Native `<select>`.** Wrapped in a `<label>`, it gets its accessible name for free, works with
+Tab and arrow keys, and a phone shows its own picker. A custom drop-down would need all of that
+rebuilt by hand. The footer lost `role="note"`, so it is the page's "contentinfo" landmark again.
+
 ## Key concepts from first principles
 
 - **i18n** ("internationalisation", 18 letters between i and n): designing the app so text can be
@@ -131,6 +184,12 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
 - **ARIA tabs pattern**: `role="tablist"` on the row, `role="tab"` + `aria-selected` +
   `aria-controls` on each tab, `role="tabpanel"` on each panel; only the selected tab is a Tab-key
   stop and the arrow keys move between tabs.
+- **Stale response (race condition)**: two downloads run at the same time and the slower,
+  older one finishes last. If the code just uses "whatever arrives", the screen shows the old
+  answer. Fix: remember which request is the newest and ignore the others.
+- **`useRef` vs `useState`**: both keep a value between renders; changing state re-renders the
+  component, changing a ref does not. The cache and the request counter are refs because the
+  screen does not depend on them directly.
 - **Component tree**: which component renders which. `App` renders `Header`, `GlobeArea`,
   `SidePanel` and the footer; `SidePanel` renders three tabs; and so on down.
 - **Prop drilling vs React context**: to get the selected trek from `TrekSelector` (inside the
@@ -144,7 +203,8 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
   // in RouteLayer: const { selectedRouteId } = useContext(AppState);
   ```
 
-  (A sketch for understanding; the real context is written in #16.)
+  (A sketch for understanding. #16 did not need it: `App` passes the trek down as props,
+  see ADR-026. The context is built when a value is needed in several branches.)
 - **Re-render**: when state a component uses changes, React calls that component function again
   to work out the new screen. Cheap for a button, expensive if it happens to the whole page 60
   times a second; hence "per-frame values stay out of React". With contexts: **every component
@@ -211,6 +271,25 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
 21. **Which parts of #7 did the AI tool write, and how did you check them?** — See "AI use in
     this part" below; answer in your own words after checking the design against the app.
 22. **What was hardest?** — TODO(Dipson): answer from your own experience.
+23. **Why a native `<select>` for the trek selector?** — Keyboard support, a screen-reader name
+    (from its `<label>`) and the phone picker come free; a custom list would have to rebuild them.
+24. **Only one tab can be reached with Tab. Isn't that worse for keyboard users?** — No: it is
+    the WAI-ARIA pattern. Tab enters the row once; arrows move inside. Otherwise a keyboard user
+    would press Tab through every tab to reach the panel.
+25. **What happens if the user picks B, then A, then B while B is still downloading?** — Each
+    `select()` gets a number; only the newest request's answer is used, so the first B download
+    is ignored (but cached). Show the e2e test that proves it.
+26. **Why does choosing an uncached trek clear the map?** — Otherwise the old trek would stay on
+    the globe under the new name while loading, or for good if the download fails.
+27. **Why is `select` wrapped in `useCallback`?** — The effect that loads the index lists
+    `select` as a dependency. `useCallback(..., [])` keeps it the same function on every render,
+    so the effect runs once (twice in development under StrictMode, which the `cancelled` flag
+    makes harmless).
+28. **Why are hidden tab panels kept in the page?** — Each tab's `aria-controls` must point at an
+    element that exists, and the panel keeps its state while another tab is shown.
+29. **How do you know the tabs work without a mouse?** — `trek-selector.spec.ts` drives them with
+    ArrowLeft/Right, Home, End and Tab and checks focus, `aria-selected` and that exactly one tab
+    is a Tab stop; `tabKeys.test.ts` checks the key → index maths.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -225,6 +304,13 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
    on which user action, and which components re-render when it changes.
 7. Sketch a phone layout (about 400 px wide) for the Trek tab and write down one thing in
    ADR-018 you would have to change to support it.
+8. Run `npm run dev`, put the mouse away, and use only Tab, Shift+Tab, the arrow keys, Home and
+   End to reach every tab and the trek selector. Write down anything you could not reach.
+9. In `useRoutes.ts`, change the check `latestRequest.current !== request` back to compare trek
+   ids (keep the id in the ref instead). Run `npx playwright test e2e/trek-selector.spec.ts` and
+   explain which test fails and why. Undo the change.
+10. Work out by hand `nextTabIndex(0, 'ArrowLeft', 3)` and `nextTabIndex(2, 'ArrowRight', 3)`,
+    then check your answers against `tabKeys.test.ts`.
 
 ## AI use in this part
 
@@ -239,6 +325,11 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
   - components marked "(exists)" that are really plain elements.
 
   Mermaid's own parser checked both diagrams.
+- **Issue #16 (2026-11-22):** Claude Code wrote `useRoutes` selection and caching,
+  `TrekPanel`, `SidePanel`, `tabKeys` and their tests, the new strings (Nepali machine-drafted),
+  ADR-026 and this section. A code-reviewer subagent found the B → A → B race, weak tab tests, a
+  missing Tab stop on empty panels and touch targets under 44 px; all fixed. Mutation checks
+  showed each new e2e test fails when its behaviour is removed.
 - **What you must still do:** read the design doc and challenge it (does the layout suit how a
   trekker plans?), compare it with the real app as each feature lands, and do exercises 5–7 by
   hand.
@@ -246,6 +337,8 @@ explains the stand-in symbols (for example `NE` = the नेपाली button)
 ## Changelog
 
 - 2026-11-19 — M0: layout, disclaimer, i18n helper + parity test, requirements, architecture.
+- 2026-11-22 — M3 #16: Trek tab and side-panel tabs walkthrough, stale-response and
+  `useRef` concepts, questions 23–29, exercises 8–10, AI use.
 - 2026-11-20 — M1 #7: UI design walkthrough (layout, component tree, shared state, wireframes,
   limits), concepts (context, re-render, derived state, roles, lang, ARIA tabs), questions 8–22,
   exercises 5–7, AI use; corrected after the viva-examiner check.

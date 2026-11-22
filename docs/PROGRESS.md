@@ -5,6 +5,44 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-22 · M3 #16 Trek selector panel (owner: Dipson)
+
+**Done**
+
+- PR #50 (#15 route layer) merged after green CI (ADR-021).
+- Side panel with Trek / Plan / Layers tabs following the WAI-ARIA tabs pattern (arrow keys,
+  Home/End, only the selected tab is a Tab stop). Plan and Layers show a placeholder until
+  #24–#26.
+- Trek tab: a native `<select>` listing every route in `data/routes/index.json`, the status line,
+  and a "Day n · name · altitude m" list of overnight stops. Choosing a trek redraws the route and
+  flies the camera to it. Route files are cached; a failed trek clears the map instead of leaving
+  the old one (ADR-026).
+- The footer is a plain `<footer>` again (contentinfo landmark); tests use
+  `getByRole('contentinfo')`.
+- 10 new strings in `en.json` and `ne.json` (machine-drafted Nepali, listed in
+  `docs/i18n-review.md`); `routes.error` reworded; `panel.comingSoon` removed.
+- e2e: second synthetic fixture route; new `trek-selector.spec.ts` (keyboard selection, cache,
+  failed trek, late download, tabs). Screenshot `docs/screenshots/m3-trek-selector-synthetic.png`
+  (synthetic data); the two older M3 screenshots refreshed because the panel changed. New helper
+  `e2e/screenshot.ts` waits until no tile has arrived for 2 s, because one capture was taken
+  before the terrain had loaded.
+- Code review found a real race: the stale-download check compared trek ids, so choosing B, A,
+  B quickly let both B downloads through (and a failed second one showed an error next to a
+  drawn trek). Fixed by numbering the requests, with an e2e test that holds downloads back and
+  releases them out of order. Also from the review: stronger tab tests, Tab stop on empty
+  panels, 44 px touch targets, doc comments, docs.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 78
+passed; `npm run e2e` 8 passed. Mutation checks, each made one e2e test fail: removing the
+"clear the map" line; removing the cache; the old id-based check; removing the newest-request
+check; removing the empty panels' `tabIndex`.
+
+**Team next**
+
+- Dipson: read `useRoutes.ts`, `TrekPanel.tsx`, `SidePanel.tsx`; try the tabs and selector with
+  the keyboard only; review the new Nepali strings; do exercises 8–10 in the viva notes.
+- Real treks appear in the selector once #9–#12 add route files.
+
 ## 2026-11-21 · M3 #15 Route line and stop markers (owner: Sparsh; index: Unique)
 
 **Done**

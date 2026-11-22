@@ -228,8 +228,8 @@ RouteLayer FLY effect [viewer, route]:  camera.flyToBoundingSphere(sphere around
   `try`, so a file with the wrong shape shows "could not load" instead of crashing the page (and
   the medical disclaimer with it).
 
-**Limits.** The first route is shown automatically until the trek selector (#16). Daily stages are
-#49. The info box is Cesium's own; its styling is basic.
+**Limits.** The first route is shown automatically at start-up; since #16 the user can choose
+another in the Trek tab (Dipson's `TrekPanel`). Daily stages are #49. The info box is Cesium's own; its styling is basic.
 
 ## Key concepts from first principles
 

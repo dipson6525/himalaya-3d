@@ -3,36 +3,50 @@
  * Owner: Dipson Gurung (UI). Related FR: all (this is where features are mounted).
  *
  * The medical disclaimer lives in the footer of the layout so it is visible on every
- * screen, as required by our safety rule. Feature panels (trek selector, itinerary,
- * elevation profile, layers) will be added to the side panel in later milestones.
+ * screen, as required by our safety rule. The side panel has three tabs (SidePanel.tsx):
+ * Trek (choose a trek, see its stops), Plan and Layers (filled in by later issues).
  *
  * Layers that draw on the globe (RouteLayer) are children of CesiumGlobe, so they can reach the
- * Cesium Viewer through ViewerContext (docs/ui-design.md).
+ * Cesium Viewer through ViewerContext (docs/ui-design.md). State shared by the globe and the
+ * panel (the selected route) lives here and is passed down as props.
  */
 import { useState } from 'react';
 import { CesiumGlobe } from '../engine/CesiumGlobe';
 import { RouteLayer } from '../features/routes/RouteLayer';
-import { routeDrawing } from '../features/routes/routeEntities';
-import { useRoutes, type RoutesState } from '../features/routes/useRoutes';
+import { TrekPanel } from '../features/routes/TrekPanel';
+import { useRoutes } from '../features/routes/useRoutes';
 import { t, type Language } from '../i18n';
+import { SidePanel, type PanelTab } from './SidePanel';
 
 /** The interface language. Fixed to English until the language toggle (#27). */
 const LANGUAGE: Language = 'en';
-
-/** One line telling the user what the globe is showing (or why it shows no trek). */
-function routeStatusText(routes: RoutesState, language: Language): string {
-  if (routes.status === 'loading') return t('routes.loading', language);
-  if (routes.status === 'error') return t('routes.error', language);
-  if (!routes.current) return t('routes.none', language);
-  const drawing = routeDrawing(routes.current, language);
-  return t('routes.showing', language, { name: drawing.name, count: drawing.stops.length });
-}
 
 /** The whole application page. */
 export function App() {
   const routes = useRoutes();
   // How many stop markers RouteLayer has really put on the globe (also read by the e2e test).
   const [drawnStops, setDrawnStops] = useState(0);
+
+  const tabs: PanelTab[] = [
+    {
+      id: 'trek',
+      labelKey: 'tabs.trek',
+      content: <TrekPanel routes={routes} language={LANGUAGE} drawnStops={drawnStops} />,
+      hasControls: true,
+    },
+    {
+      id: 'plan',
+      labelKey: 'tabs.plan',
+      content: <p>{t('plan.comingSoon', LANGUAGE)}</p>,
+      hasControls: false,
+    },
+    {
+      id: 'layers',
+      labelKey: 'tabs.layers',
+      content: <p>{t('layers.comingSoon', LANGUAGE)}</p>,
+      hasControls: false,
+    },
+  ];
 
   return (
     <div className="app">
@@ -47,17 +61,11 @@ export function App() {
             <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
           </CesiumGlobe>
         </section>
-        <aside className="side-panel">
-          <p data-testid="route-status" data-drawn-stops={drawnStops}>
-            {routeStatusText(routes, LANGUAGE)}
-          </p>
-          <p>{t('panel.comingSoon', LANGUAGE)}</p>
-        </aside>
+        <SidePanel tabs={tabs} language={LANGUAGE} />
       </main>
 
-      <footer className="disclaimer" role="note">
-        {t('disclaimer.medical', LANGUAGE)}
-      </footer>
+      {/* A plain <footer> keeps its built-in "contentinfo" landmark (docs/ui-design.md, #16). */}
+      <footer className="disclaimer">{t('disclaimer.medical', LANGUAGE)}</footer>
     </div>
   );
 }

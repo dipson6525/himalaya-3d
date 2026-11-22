@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
+import { saveScreenshot } from './screenshot';
 
 const fixture = (name: string) =>
   readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf-8');
@@ -36,16 +37,14 @@ test('shows the selected route and counts its stops (synthetic fixture)', async 
   });
 
   if (process.env.UPDATE_SCREENSHOTS === '1') {
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2500); // let the 1.5 s camera flight to the route finish
-    await page.screenshot({ path: SCREENSHOT });
+    await saveScreenshot(page, SCREENSHOT);
   }
 });
 
 test('says so when the route list cannot be loaded', async ({ page }) => {
   await page.route('**/data/routes/index.json', (route) => route.fulfill({ status: 500 }));
   await page.goto('./');
-  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
+  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek data');
 });
 
 test('says so when the route file itself is missing', async ({ page }) => {
@@ -54,6 +53,6 @@ test('says so when the route file itself is missing', async ({ page }) => {
   );
   await page.route('**/data/routes/test-route.geojson', (route) => route.fulfill({ status: 404 }));
   await page.goto('./');
-  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
-  await expect(page.getByRole('note')).toContainText('not medical advice'); // page still intact
+  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek data');
+  await expect(page.getByRole('contentinfo')).toContainText('not medical advice'); // page still intact
 });

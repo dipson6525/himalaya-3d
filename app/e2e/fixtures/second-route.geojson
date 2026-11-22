@@ -1,0 +1,70 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "route",
+        "id": "second-route",
+        "name_en": "Second Test Route",
+        "name_ne": "दोस्रो परीक्षण मार्ग",
+        "description_en": "A second made-up route used only in tests.",
+        "description_ne": "परीक्षणका लागि मात्र बनाइएको दोस्रो मार्ग।",
+        "geometry_source": "TEST"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [86.0, 27.5],
+          [86.05, 27.55],
+          [86.1, 27.6]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "stop",
+        "id": "stop-c",
+        "name_en": "Test Stop C",
+        "name_ne": "परीक्षण बिसौनी सी",
+        "day": 1,
+        "altitude_m": 2000,
+        "altitude_source": "TEST",
+        "description_en": "First synthetic stop of the second route.",
+        "description_ne": "दोस्रो मार्गको पहिलो परीक्षण बिसौनी।"
+      },
+      "geometry": { "type": "Point", "coordinates": [86.0, 27.5] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "stop",
+        "id": "stop-d",
+        "name_en": "Test Stop D",
+        "name_ne": "परीक्षण बिसौनी डी",
+        "day": 2,
+        "altitude_m": 2500,
+        "altitude_source": "TEST",
+        "description_en": "Second synthetic stop of the second route.",
+        "description_ne": "दोस्रो मार्गको दोस्रो परीक्षण बिसौनी।"
+      },
+      "geometry": { "type": "Point", "coordinates": [86.05, 27.55] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "kind": "stop",
+        "id": "stop-e",
+        "name_en": "Test Stop E",
+        "name_ne": "परीक्षण बिसौनी ई",
+        "day": 4,
+        "altitude_m": 3000,
+        "altitude_source": "TEST",
+        "description_en": "Third synthetic stop of the second route.",
+        "description_ne": "दोस्रो मार्गको तेस्रो परीक्षण बिसौनी।"
+      },
+      "geometry": { "type": "Point", "coordinates": [86.1, 27.6] }
+    }
+  ]
+}

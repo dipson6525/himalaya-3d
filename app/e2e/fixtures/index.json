@@ -1,3 +1,6 @@
 {
-  "routes": [{ "id": "test-route", "name_en": "Test Route", "name_ne": "परीक्षण मार्ग" }]
+  "routes": [
+    { "id": "test-route", "name_en": "Test Route", "name_ne": "परीक्षण मार्ग" },
+    { "id": "second-route", "name_en": "Second Test Route", "name_ne": "दोस्रो परीक्षण मार्ग" }
+  ]
 }

@@ -327,8 +327,42 @@ details had to be decided to write code and tests.
   error instead of breaking the page.
 - e2e tests intercept the two requests (`page.route`) and serve a clearly SYNTHETIC fixture
   (`app/e2e/fixtures/`, "Test Route"); the screenshot from it is named `...-synthetic.png`.
-- Until the trek selector (#16) exists, the first route in the index is shown.
+- Until the trek selector (#16) exists, the first route in the index is shown. (Since #16 the
+  first route is still the default; the user can choose another, ADR-026.)
 **Alternatives:** `import.meta.glob` to bundle routes (no network request, but every route is
 downloaded up front and tests cannot swap in a fixture).
 **Consequences:** One extra small request at start-up. Adding a real route needs no code change:
 build it with the pipeline, commit the `.geojson` and the regenerated `index.json`.
+
+## ADR-026 · Trek selector: native select, ARIA tabs, props instead of a context (Dipson, 2026-11-22)
+
+**Context:** Issue #16 (FR2): the user chooses a trek; the globe, the camera and the stop list
+follow. Acceptance: lists every route in `data/routes/index.json`, keyboard accessible, strings
+in both languages. ADR-018 planned an `AppState` context for shared values.
+**Decision:**
+- The selector is a native `<select>` inside a `<label>`. Browsers already give it keyboard
+  support and a screen-reader name; a custom drop-down would have to rebuild both.
+- `useRoutes` keeps the index, `selectedId` and the selected route's file, and offers
+  `select(id)`. Downloaded files are cached in a `Map` (in a `useRef`), so going back to a trek
+  makes no new request. Every `select()` call gets a number (`latestRequest` ref) and only the
+  answer to the newest call is used, so a late download is ignored even when the user chose the
+  same trek again in between (comparing trek ids would let both answers through; code review
+  found this). Choosing a trek that is not cached clears the map first, so the globe never shows
+  the previous trek under the new name, also when the download fails.
+- The side panel follows the WAI-ARIA tabs pattern with automatic activation: roving
+  `tabIndex`, ArrowLeft/ArrowRight wrap round, Home/End jump to the ends (`tabKeys.ts`, a pure
+  function with unit tests). Hidden panels stay in the page (`hidden`), because every tab's
+  `aria-controls` must point at an element that exists, and a panel keeps its state. A panel
+  with no control of its own (Plan, Layers today) gets `tabIndex=0` so Tab still reaches it.
+  Tabs and the selector are at least 44 px tall (ui-design rule 6).
+- `App` calls `useRoutes` and passes the result down as props. With one shared value and two
+  readers that is simpler than a context; `AppState` (ADR-018) is built when a value is needed in
+  several branches (likely the language, #27).
+- The footer loses `role="note"` and keeps its "contentinfo" landmark (ui-design gap).
+**Alternatives:** a list of buttons or a custom combobox (more code, more ways to get keyboard
+and screen-reader behaviour wrong); `AppState` now (an extra concept with only one value in it);
+tabs that need Enter to activate ("manual activation", only worth it when showing a panel is
+slow).
+**Consequences:** The camera flies to each chosen trek (`RouteLayer` flies when its route
+changes). Plan and Layers tabs show a one-line placeholder until #24–#26. The e2e tests use a
+second synthetic fixture route.

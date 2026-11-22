@@ -22,6 +22,8 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **Haversine formula** | Great-circle distance between two lat/lon points on a sphere (M4). |
 | **Heading and pitch** | Camera angles: heading = compass direction (0° north, 90° east); pitch = up/down angle (0° level, −90° straight down). |
 | **i18n** | Internationalisation — making all text swappable per language. |
+| **Landmark** | A page region a screen reader can jump to (banner, main, contentinfo = footer, …). `<header>`, `<main>` and `<footer>` get one automatically. |
+| **Roving tabindex** | Only one item of a group (the selected tab) has `tabIndex=0`; the others have `-1`, so Tab reaches the group once and arrow keys move inside it. |
 | **Imagery** | The map picture draped over the globe (satellite or drawn map). |
 | **ODbL** | Open Database License, OpenStreetMap's licence: credit OSM and share-alike derived databases. |
 | **linemerge** | shapely function that joins lines sharing an end point into one line (flipping them where needed). |

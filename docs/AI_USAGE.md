@@ -16,6 +16,7 @@ that ran on a team member's laptop with access only to this project folder.
 | 2026-11-21 | M5, M7 | For issue #23, wrote the acclimatization checker, its 25 tests and ADR-024, and ran a mutation check; for #31, wrote the testing templates and the questionnaire with empty result cells. | Unique runs the checker tests and fills the matrix results; the team fills every testing table from real measurements and real users. |
 | 2026-11-21 | M4 | For issue #18, wrote the haversine / cumulative-distance / binary-search module and its tests; fixed what code review found (worked-example rounding, weak tests, NaN) and ran a mutation check. | Sparsh works the haversine example by hand and does exercises 7–8. |
 | 2026-11-21 | M3 | For issue #15, wrote run-time route loading, the route index generator, ViewerContext, RouteLayer with popups, `{name}` placeholders in `t()`, unit and e2e tests (with a synthetic fixture route), ADR-025 and the notes; opened issue #49 for daily stages. | Sparsh and Unique read the new modules; Dipson reviews the new strings. |
+| 2026-11-22 | M3 | For issue #16, wrote the trek selector, stop list, ARIA side-panel tabs, route caching, new strings (Nepali machine-drafted), unit and e2e tests (second synthetic fixture), ADR-026 and Dipson's notes; ran a mutation check and a code review. | Dipson reads the new files, uses the panel with the keyboard only, reviews the Nepali strings and does exercises 8–10 by hand. |
 
 ## Rules we gave the AI (from CLAUDE.md and our setup prompt)
 

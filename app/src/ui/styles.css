@@ -11,6 +11,7 @@
   --text: #e8f1f8;
   --muted: #a9c1d4;
   --warn-bg: #4a3410;
+  --accent: #ffd166; /* same yellow as the stop markers on the globe */
   font-family: system-ui, 'Segoe UI', 'Noto Sans Devanagari', sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -85,9 +86,72 @@ body,
 }
 
 .side-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+
+/* Tab row (WAI-ARIA tabs pattern, SidePanel.tsx). The selected tab gets an underline as well as
+   a colour change, so the difference does not rely on colour alone. */
+.tab-row {
+  display: flex;
+  border-bottom: 1px solid var(--muted);
+}
+
+.tab {
+  flex: 1;
+  min-height: 44px; /* touch target, ui-design rule 6 */
+  padding: 0.6rem 0.5rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tab:focus-visible,
+.field select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tab-panel {
   padding: 1rem;
   overflow-y: auto;
-  background: var(--panel);
+}
+
+/* A label above its form control. */
+.field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.field select {
+  min-height: 44px; /* touch target, ui-design rule 6 */
+  padding: 0.4rem;
+  font: inherit;
+}
+
+.panel-heading {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.stop-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .disclaimer {
