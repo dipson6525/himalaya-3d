@@ -1,11 +1,14 @@
 /**
- * useRoutes.ts — React hook that loads the route index and the currently shown route.
- * Owner: Sparsh Gorkhali (loading), Dipson Gurung (it feeds the trek selector, #16). FR2.
+ * useRoutes.ts — React hook: the route list, which route is selected, and its loaded file.
+ * Owner: Sparsh Gorkhali (loading), Dipson Gurung (trek selector, #16). Related FR: FR2.
  *
- * Until the trek selector (#16) exists, the first route in the index is shown. The hook reports
- * a status so the side panel can say "loading", "no data yet" or "could not load".
+ * - On start-up it downloads data/routes/index.json and selects the first route.
+ * - select(id) is called by the trek selector: it takes that route from the cache if it was
+ *   shown before, otherwise it clears the map and downloads it.
+ * - If the user picks another route before a download finishes, the late answer is ignored, so
+ *   the map always shows the route that is selected in the list.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchRoute, fetchRouteIndex, type RouteSummary } from './loadRoutes';
 import { routeDrawing } from './routeEntities';
 import type { RouteFile } from './types';
@@ -15,34 +18,75 @@ export type RoutesStatus = 'loading' | 'ready' | 'error';
 export interface RoutesState {
   status: RoutesStatus;
   routes: RouteSummary[];
-  /** The route being shown, or null if there are no routes (or it is still loading). */
+  /** Id of the route chosen in the trek selector (null when there are no routes). */
+  selectedId: string | null;
+  /** The loaded file of the selected route, or null while loading / when there are none. */
   current: RouteFile | null;
+  /** Choose a route by id (downloads it if needed). */
+  select: (id: string) => void;
 }
 
-/** Load data/routes/index.json once, then the first route in it (if any). */
 export function useRoutes(): RoutesState {
-  const [state, setState] = useState<RoutesState>({ status: 'loading', routes: [], current: null });
+  const [status, setStatus] = useState<RoutesStatus>('loading');
+  const [routes, setRoutes] = useState<RouteSummary[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [current, setCurrent] = useState<RouteFile | null>(null);
 
-  useEffect(() => {
-    let cancelled = false; // set by the cleanup, so late answers after unmount are ignored
+  // useRef keeps values between renders without causing a re-render when they change.
+  const cache = useRef(new Map<string, RouteFile>()); // route files already downloaded
+  const latestRequest = useRef<string | null>(null); // the id the user asked for last
+
+  const select = useCallback((id: string) => {
+    latestRequest.current = id;
+    setSelectedId(id);
+
+    const cached = cache.current.get(id);
+    if (cached) {
+      setCurrent(cached);
+      setStatus('ready');
+      return;
+    }
+
+    // Clear the map while the new file downloads: it must never show the previous trek
+    // under the newly selected name.
+    setCurrent(null);
+    setStatus('loading');
     async function load() {
       try {
-        const routes = await fetchRouteIndex();
-        const current = routes.length > 0 ? await fetchRoute(routes[0].id) : null;
+        const file = await fetchRoute(id);
         // Check the file's shape HERE, inside try: if it were only discovered while rendering,
         // the error would blank the whole page (including the medical disclaimer).
-        if (current) routeDrawing(current, 'en');
-        if (!cancelled) setState({ status: 'ready', routes, current });
+        routeDrawing(file, 'en');
+        cache.current.set(id, file);
+        if (latestRequest.current !== id) return; // the user has picked another route since
+        setCurrent(file);
+        setStatus('ready');
       } catch (error) {
-        console.error('Could not load routes', error);
-        if (!cancelled) setState({ status: 'error', routes: [], current: null });
+        console.error(`Could not load route ${id}`, error);
+        if (latestRequest.current === id) setStatus('error');
       }
     }
     void load();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  return state;
+  useEffect(() => {
+    let cancelled = false; // set by the cleanup, so a late answer after unmount is ignored
+    fetchRouteIndex()
+      .then((list) => {
+        if (cancelled) return;
+        setRoutes(list);
+        if (list.length > 0) select(list[0].id);
+        else setStatus('ready');
+      })
+      .catch((error: unknown) => {
+        console.error('Could not load the route index', error);
+        if (!cancelled) setStatus('error');
+      });
+    return () => {
+      cancelled = true;
+      latestRequest.current = null; // also ignore any route download still running
+    };
+  }, [select]);
+
+  return { status, routes, selectedId, current, select };
 }

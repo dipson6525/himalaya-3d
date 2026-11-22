@@ -45,7 +45,7 @@ test('shows the selected route and counts its stops (synthetic fixture)', async 
 test('says so when the route list cannot be loaded', async ({ page }) => {
   await page.route('**/data/routes/index.json', (route) => route.fulfill({ status: 500 }));
   await page.goto('./');
-  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
+  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek data');
 });
 
 test('says so when the route file itself is missing', async ({ page }) => {
@@ -54,6 +54,6 @@ test('says so when the route file itself is missing', async ({ page }) => {
   );
   await page.route('**/data/routes/test-route.geojson', (route) => route.fulfill({ status: 404 }));
   await page.goto('./');
-  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
-  await expect(page.getByRole('note')).toContainText('not medical advice'); // page still intact
+  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek data');
+  await expect(page.getByRole('contentinfo')).toContainText('not medical advice'); // page still intact
 });

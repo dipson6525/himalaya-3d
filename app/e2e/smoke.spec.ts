@@ -24,7 +24,7 @@ test('app shell loads with globe, credits and medical disclaimer', async ({ page
   await page.goto('./');
 
   await expect(page.getByRole('heading', { level: 1, name: 'Himalaya 3D' })).toBeVisible();
-  await expect(page.getByRole('note')).toContainText('not medical advice');
+  await expect(page.getByRole('contentinfo')).toContainText('not medical advice');
   // data/routes/index.json is real but empty until the route issues (#9–#12) add treks.
   await expect(page.getByTestId('route-status')).toContainText('No trek data yet');
 
