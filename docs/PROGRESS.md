@@ -20,9 +20,13 @@ what the TEAM must do next, open questions.
 - The real index is empty, so the live app says "No trek data yet". The e2e test serves a
   SYNTHETIC fixture route: `docs/screenshots/m3-route-layer-synthetic.png`.
 - Follow-up issue #49 opened for FR2's "daily stages".
+- Code review before merging found a real lifecycle bug (an add finishing after cleanup left old
+  markers behind under StrictMode) plus smaller issues (fly-to on language change, a bad file
+  could blank the page, inherited names in `t()` placeholders, `route_index.py` edge cases, no
+  e2e check that markers were really drawn). All fixed with tests; e2e now 4 tests.
 
 **Test evidence (local, Windows):** after merging main: `npm run lint` clean; `npm run typecheck`
-clean; Vitest all passed; `npm run e2e` 3 passed; data-prep `pytest` 116 passed, 1 skipped.
+clean; Vitest 74 passed; `npm run e2e` 4 passed; data-prep `pytest` 116 passed, 1 skipped.
 
 **TEAM TODO:** Sparsh: exercises 9–10. Dipson: the new strings are listed in
 `docs/i18n-review.md`.

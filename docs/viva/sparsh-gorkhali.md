@@ -196,10 +196,13 @@ Distances before the start or after the end are clamped. Example from the tests:
 App ──useRoutes──► fetch <base>data/routes/index.json ──► fetch <first id>.geojson ──► RouteFile
 App renders <CesiumGlobe> <RouteLayer route=... language=... /> </CesiumGlobe>
 CesiumGlobe ──ViewerContext──► RouteLayer ──useViewer()──► the Viewer (null until it exists)
-RouteLayer effect: routeDrawing(route, language)        plain data, unit-tested
-                   → new CustomDataSource: trail polyline + one point/label per stop
-                   → viewer.dataSources.add(...) → viewer.flyTo(dataSource)
-           cleanup: viewer.dataSources.remove(dataSource, true)   (every entity gone at once)
+RouteLayer DRAW effect [viewer, route, language]:
+     routeDrawing(route, language)                       plain data, unit-tested
+     → new CustomDataSource: trail polyline + one point/label per stop
+     → viewer.dataSources.add(...)  (finishes a moment later: a Promise)
+        └ when it finishes: if already cleaned up → remove it again; else onDrawn(stop count)
+     cleanup: viewer.dataSources.remove(dataSource)       (every entity gone at once)
+RouteLayer FLY effect [viewer, route]:  camera.flyToBoundingSphere(sphere around the trail)
 ```
 
 **Key ideas.**
@@ -213,8 +216,17 @@ RouteLayer effect: routeDrawing(route, language)        plain data, unit-tested
 - *Popups:* each stop entity has a `description` (HTML) that Cesium's info box shows when the
   marker is clicked. The HTML is built in `routeEntities.ts` and every piece of data in it goes
   through `escapeHtml`, so a "<" in a name can never inject markup.
-- *Async safety:* `dataSources.add` returns a promise. If the route changed or the Viewer was
-  destroyed before it resolved, the `removed` flag / `isDestroyed()` check stops the fly-to.
+- *Async safety (found in code review):* `dataSources.add` only really adds the data source a
+  moment later. React StrictMode runs effect → cleanup → effect straight away, so the cleanup's
+  `remove()` can run BEFORE the add finished — and then it removes nothing, and the old markers
+  would stay twice. So when the add finishes, the code checks the `removed` flag and removes the
+  data source itself. `isDestroyed()` guards the case where the whole globe is already gone.
+- *Two effects:* the DRAW effect re-runs when the language changes (labels and popups must
+  change); the FLY effect runs only when the route changes, so switching language does not throw
+  the user's view away.
+- *Checked before rendering:* `useRoutes` runs `routeDrawing` on a downloaded file inside its
+  `try`, so a file with the wrong shape shows "could not load" instead of crashing the page (and
+  the medical disclaimer with it).
 
 **Limits.** The first route is shown automatically until the trek selector (#16). Daily stages are
 #49. The info box is Cesium's own; its styling is basic.
@@ -285,7 +297,8 @@ RouteLayer effect: routeDrawing(route, language)        plain data, unit-tested
 23. **How do layers get the Cesium Viewer?** — Through `ViewerContext`: CesiumGlobe provides it,
     layers call `useViewer()` and must handle null.
 24. **How are old markers removed when the route changes?** — Everything is in one
-    `CustomDataSource`; the effect cleanup calls `dataSources.remove(dataSource, true)`.
+    `CustomDataSource`; the cleanup calls `dataSources.remove(dataSource)`, and if the add had not
+    finished yet, the add's own callback removes it (StrictMode case).
 25. **Why escape the popup HTML when the data is ours?** — Cheap insurance: a `<` or `&` in a name
     can never break the popup or inject markup.
 26. **How can the route be tested before real data exists?** — The e2e test intercepts the two
@@ -313,7 +326,7 @@ RouteLayer effect: routeDrawing(route, language)        plain data, unit-tested
 9. Change the trail colour and width in `RouteLayer.tsx`, rebuild, and take a screenshot with
    `UPDATE_SCREENSHOTS=1 npm run e2e`. Then revert.
 10. Explain, with the code open, what happens if the route changes while `dataSources.add` is
-    still pending. Which line stops the old route's fly-to?
+    still pending. Which lines make sure the old route's markers are removed anyway?
 
 ## AI use in this part
 

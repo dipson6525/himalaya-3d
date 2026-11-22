@@ -39,6 +39,11 @@ describe('t() placeholders', () => {
     expect(t('routes.showing', 'ne', { name: 'परीक्षण मार्ग', count: 2 })).toContain('परीक्षण मार्ग');
   });
 
+  it('only uses values the caller passed, not names inherited by every object', () => {
+    // 'constructor' exists on every JavaScript object; it must not count as a value.
+    expect(t('routes.showing', 'en', { count: 2 })).toContain('{name}');
+  });
+
   it('leaves a hole visible when its value is missing', () => {
     expect(t('routes.showing', 'en', { name: 'X' })).toContain('{count}');
   });

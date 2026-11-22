@@ -9,6 +9,7 @@
  * Layers that draw on the globe (RouteLayer) are children of CesiumGlobe, so they can reach the
  * Cesium Viewer through ViewerContext (docs/ui-design.md).
  */
+import { useState } from 'react';
 import { CesiumGlobe } from '../engine/CesiumGlobe';
 import { RouteLayer } from '../features/routes/RouteLayer';
 import { routeDrawing } from '../features/routes/routeEntities';
@@ -30,6 +31,8 @@ function routeStatusText(routes: RoutesState, language: Language): string {
 /** The whole application page. */
 export function App() {
   const routes = useRoutes();
+  // How many stop markers RouteLayer has really put on the globe (also read by the e2e test).
+  const [drawnStops, setDrawnStops] = useState(0);
 
   return (
     <div className="app">
@@ -41,11 +44,13 @@ export function App() {
       <main className="app-main">
         <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
           <CesiumGlobe>
-            <RouteLayer route={routes.current} language={LANGUAGE} />
+            <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
           </CesiumGlobe>
         </section>
         <aside className="side-panel">
-          <p data-testid="route-status">{routeStatusText(routes, LANGUAGE)}</p>
+          <p data-testid="route-status" data-drawn-stops={drawnStops}>
+            {routeStatusText(routes, LANGUAGE)}
+          </p>
           <p>{t('panel.comingSoon', LANGUAGE)}</p>
         </aside>
       </main>

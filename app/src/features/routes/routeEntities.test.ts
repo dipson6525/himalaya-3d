@@ -33,7 +33,7 @@ const testRoute: RouteFile = {
         name_ne: 'परीक्षण मार्ग',
         description_en: 'Synthetic.',
         description_ne: 'परीक्षण।',
-        geometry_source: 'OSM',
+        geometry_source: 'TEST',
       },
       geometry: {
         type: 'LineString',

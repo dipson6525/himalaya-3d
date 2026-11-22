@@ -48,6 +48,9 @@ def test_index_lists_routes_sorted_by_id(tmp_path):
 
 def test_unreadable_files_are_skipped_not_crashed(tmp_path):
     (tmp_path / "broken.geojson").write_text("{ not json", encoding="utf-8")
+    (tmp_path / "null-features.geojson").write_text('{"features": null}', encoding="utf-8")
+    no_id = '{"features": [{"properties": {"kind": "route", "name_en": "X"}}]}'
+    (tmp_path / "no-id.geojson").write_text(no_id, encoding="utf-8")
     write_route(tmp_path, "alpha-route", "Alpha Route", "अल्फा मार्ग")
     assert [route["id"] for route in build_index(tmp_path)["routes"]] == ["alpha-route"]
 

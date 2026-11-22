@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { fetchRoute, fetchRouteIndex, type RouteSummary } from './loadRoutes';
+import { routeDrawing } from './routeEntities';
 import type { RouteFile } from './types';
 
 export type RoutesStatus = 'loading' | 'ready' | 'error';
@@ -28,6 +29,9 @@ export function useRoutes(): RoutesState {
       try {
         const routes = await fetchRouteIndex();
         const current = routes.length > 0 ? await fetchRoute(routes[0].id) : null;
+        // Check the file's shape HERE, inside try: if it were only discovered while rendering,
+        // the error would blank the whole page (including the medical disclaimer).
+        if (current) routeDrawing(current, 'en');
         if (!cancelled) setState({ status: 'ready', routes, current });
       } catch (error) {
         console.error('Could not load routes', error);

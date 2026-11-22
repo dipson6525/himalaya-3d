@@ -95,7 +95,10 @@ export function CesiumGlobe({ children }: { children?: ReactNode }) {
     }
 
     return () => {
-      setViewer(null); // children must stop using the Viewer before it is destroyed
+      // Tell the children there is no Viewer any more. (When the whole page is removed React runs
+      // this cleanup before the children's, so destroy() below happens first; the children are
+      // protected by checking viewer.isDestroyed() in their own cleanups.)
+      setViewer(null);
       removeHomeButtonHandler();
       created?.destroy();
     };

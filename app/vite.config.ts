@@ -14,7 +14,8 @@
  *    point Vite there. Only variables whose names start with VITE_ reach the browser.
  * 4. Route data — data/routes/index.json and *.geojson are copied to "<base>data/routes/" and
  *    downloaded by the app at run time (features/routes/loadRoutes.ts), not bundled into the
- *    JavaScript. A route is only downloaded when the user picks it, and e2e tests can serve a
+ *    JavaScript. A route file is only downloaded when it is shown (for now the first route in
+ *    the index; the trek selector, #16, will let the user pick), and e2e tests can serve a
  *    synthetic route in their place.
  */
 import { fileURLToPath } from 'node:url';

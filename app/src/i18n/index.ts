@@ -35,6 +35,6 @@ export function t(
 ): string {
   const text = dictionaries[language][key] ?? dictionaries.en[key] ?? key;
   return text.replace(/\{(\w+)\}/g, (hole, name: string) =>
-    name in values ? String(values[name]) : hole,
+    Object.hasOwn(values, name) ? String(values[name]) : hole,
   );
 }

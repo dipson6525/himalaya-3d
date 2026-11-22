@@ -320,7 +320,11 @@ details had to be decided to write code and tests.
 - `RouteLayer` puts everything for one route in one `CustomDataSource` (trail polyline clamped to
   the ground; stop points and labels clamped to the ground with depth test disabled; Cesium
   info-box popups) and removes it in the effect cleanup. What to draw is computed as plain data in
-  `routeEntities.ts` (unit tested, HTML-escaped).
+  `routeEntities.ts` (unit tested, HTML-escaped). Because `dataSources.add` completes
+  asynchronously, an add that finishes after the cleanup removes itself (StrictMode). Flying to the
+  route is a separate effect on `[viewer, route]` only, so a language switch does not move the
+  camera. `useRoutes` checks a downloaded file's shape inside its `try`, so a bad file shows an
+  error instead of breaking the page.
 - e2e tests intercept the two requests (`page.route`) and serve a clearly SYNTHETIC fixture
   (`app/e2e/fixtures/`, "Test Route"); the screenshot from it is named `...-synthetic.png`.
 - Until the trek selector (#16) exists, the first route in the index is shown.

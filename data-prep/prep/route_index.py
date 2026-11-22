@@ -31,9 +31,13 @@ def build_index(routes_dir: Path = paths.ROUTES_DIR) -> dict:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             continue
-        for feature in data.get("features", []) if isinstance(data, dict) else []:
+        features = data.get("features") if isinstance(data, dict) else None
+        if not isinstance(features, list):
+            continue
+        for feature in features:
             props = feature.get("properties") if isinstance(feature, dict) else None
-            if isinstance(props, dict) and props.get("kind") == "route":
+            is_route = isinstance(props, dict) and props.get("kind") == "route"
+            if is_route and isinstance(props.get("id"), str):
                 routes.append(
                     {
                         "id": props.get("id"),

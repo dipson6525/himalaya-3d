@@ -30,6 +30,10 @@ test('shows the selected route and counts its stops (synthetic fixture)', async 
     'Showing Test Route: 2 overnight stops. Click a marker for details.',
   );
   await expect(page.locator('.cesium-widget canvas')).toBeVisible({ timeout: 30_000 });
+  // RouteLayer reports the markers it really added to the globe (not just what the data says).
+  await expect(page.getByTestId('route-status')).toHaveAttribute('data-drawn-stops', '2', {
+    timeout: 30_000,
+  });
 
   if (process.env.UPDATE_SCREENSHOTS === '1') {
     await page.waitForLoadState('networkidle');
@@ -42,4 +46,14 @@ test('says so when the route list cannot be loaded', async ({ page }) => {
   await page.route('**/data/routes/index.json', (route) => route.fulfill({ status: 500 }));
   await page.goto('./');
   await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
+});
+
+test('says so when the route file itself is missing', async ({ page }) => {
+  await page.route('**/data/routes/index.json', (route) =>
+    route.fulfill({ contentType: 'application/json', body: fixture('index.json') }),
+  );
+  await page.route('**/data/routes/test-route.geojson', (route) => route.fulfill({ status: 404 }));
+  await page.goto('./');
+  await expect(page.getByTestId('route-status')).toContainText('Could not load the trek list');
+  await expect(page.getByRole('note')).toContainText('not medical advice'); // page still intact
 });
