@@ -451,3 +451,42 @@ is an irregular mesh, so the spacing of heights inside it varies, TODO(team): ve
 the window maximum, the clearance and the runtime guard cover that. Whether the speed and heights feel right on real
 treks, and the frame rate on the team's laptops (NFR1, #29), must be checked by the team.
 TODO(team): verify on real routes after #9–#12.
+
+## ADR-029 · Flythrough controls: speed as a value, days as buttons (Sparsh, 2026-11-23)
+
+**Context:** Issue #20 (FR3): play, pause, speed and "jump to day N" for the flythrough (#19,
+ADR-028). Daily stages exist since #49 (ADR-027).
+**Decision:**
+- Speed is a native `<select>` with 0.5×, 1×, 2×, 4× of 250 m/s. It is a value the user sets,
+  so it lives in `App` state; an effect on [controller, speed] calls `controller.setSpeed()`,
+  which also gives a new trek's controller the chosen speed. It takes effect from the next frame.
+- "Jump to the start of: Day N" is one button per day that has a stage (rest days have none),
+  not a `<select>`: a select that acts on every change would jump once per arrow-key press for
+  keyboard users (Chromium on Windows changes a closed select with the arrow keys).
+- `controller.jumpTo(trailDistance)` puts the camera at the day's start stop, looking ahead. The
+  stage maths gives that place as a distance along the TRAIL; the flythrough moves along the
+  CURVE, so `curveDistanceForTrail` reads the curve's distance table the other way round. If
+  it was playing it keeps playing; otherwise it waits there as "paused" (Resume starts there).
+- A jump also highlights that day's stage, but `StageLayer` gets `flyTo = false` so it does not
+  fly the camera away from the flythrough. Pressing a day in the stop list still flies there
+  and pauses the flythrough. `StageLayer` draws and flies in two separate effects, so the same
+  day pressed both ways keeps its highlight.
+- Jump buttons only for stages walked FORWARDS along the stored trail line (`isForwardStage`).
+  The flythrough flies the line forwards only; on the way back of an out-and-back trek (end
+  before start) a jump would land at the wrong end, and Resume would fly away from the day or
+  finish at once (code review found this). Those days keep their stop-list button.
+- Each command (play, jumpTo, pause) gets a number; play() and jumpTo() only act after waiting
+  for the preparation if no newer command came in. A press the user already cancelled never
+  comes back, and two presses can never start two animation loops (code review found a case).
+- Each day button's accessible name is "Jump to the start of day N" (contains the visible
+  "Day N"); the group label "Jump to the start of a day" stands on its own, instead of a label
+  and button text glued into one English-order sentence.
+**Alternatives:** a speed slider (harder to label with exact values and to use precisely with a
+keyboard); one set of day buttons doing both jobs (the same press would mean different things
+depending on whether the flythrough is running).
+**Consequences:** Two sets of day buttons in the Trek tab with different jobs: the flythrough's
+("jump the flythrough here") and the stop list's ("show me this day"). TODO(team): check with
+the M7 questionnaire (#31) whether users find that clear. Out-and-back treks get no flythrough
+jump for their return days, and the flythrough never flies them backwards. Heading smoothing is
+time-based, so at 4× the camera turns later along the trail than at 1× (a possible later
+improvement).

@@ -74,7 +74,7 @@ flowchart LR
   Panel --> TrekTab["TrekPanel (exists) #16"]:::dipson
   TrekTab --> Selector["TrekSelector (element today)<br/>native select #16"]:::dipson
   TrekTab --> StopList["StopList (element today) #16<br/>day buttons #49"]:::dipson
-  TrekTab --> FlyControls["FlythroughControls (exists) #19<br/>play · pause; speed · day #20"]:::sparsh
+  TrekTab --> FlyControls["FlythroughControls (exists) #19 #20<br/>play · pause · speed · day"]:::sparsh
   Panel --> PlanTab["PlanTab"]:::unique
   PlanTab --> PlanNote["Disclaimer banner"]:::dipson
   PlanTab --> Itinerary["ItineraryEditor #24"]:::unique
@@ -128,8 +128,11 @@ change many times a second in a small context of their own (or out of React enti
 | `sunTime` (date and time) | `AppState` | SunSlider | CesiumGlobe (scene lighting / clock) |
 | `profileHighlightM` (distance along the trail, metres) | `ProfileHoverContext` (its own) | ElevationProfile (hover), RouteLayer (click on trail) | ProfileHoverMarker, ElevationProfile |
 
-`CesiumGlobe` also shares the Cesium Viewer through
-`ViewerContext` (added in #15). Neither changes after start-up, so sharing them re-renders nothing.
+As built so far: the selected trek (#16), the flythrough's status and chosen speed (#19–#20) are
+`useState` in `App`, passed down as props (ADR-026, ADR-028, ADR-029); `AppState` comes later.
+
+`CesiumGlobe` also shares the Cesium Viewer through `ViewerContext` (added in #15). It does not
+change after start-up, so sharing it re-renders nothing.
 
 ```mermaid
 flowchart LR

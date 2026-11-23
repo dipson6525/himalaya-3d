@@ -352,9 +352,41 @@ leaves `terrainProvider` undefined until it is ready, so `play()` waits for
 disabled button loses keyboard focus, so a keyboard user's next Enter did nothing; it now uses
 `aria-disabled` and ignores presses.
 
-**Limits.** Terrain level 11 is coarse (about 140 m between samples): the ±500 m maximum, the
-250 m clearance and the runtime guard cover that. Speed and heights still need checking on real
-treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#12.
+**Limits.** Terrain level 11 is coarse (a tile is 0.088°, about 9.8 km; Cesium World Terrain is
+an irregular mesh, so the spacing of heights inside a tile varies, TODO(team): verify over Nepal):
+the ±500 m maximum, the 250 m clearance and the runtime guard cover that. Speed and heights still
+need checking on real treks, and the FPS on the team's laptops (#29). TODO(team): verify after
+#9–#12.
+
+### Flythrough controls (`FlythroughControls.tsx`, issue #20)
+
+- **Speed** is a native select (0.5×, 1×, 2×, 4× of 250 m/s). It is a *value*, so it is
+  `useState` in `App`, and an effect on [controller, speed] calls `controller.setSpeed()`. That
+  same effect gives a new trek's controller the chosen speed. Compare Play: an *event*, so a
+  method call (ui-design, "commands are method calls").
+- **Jump to the start of day N** is one button per day that has a stage. Not a select: Chromium
+  on Windows changes a closed select with the arrow keys, so a keyboard user would jump once per
+  key press.
+- **Trail distance → curve distance.** A stage starts at a distance along the TRAIL
+  (`Stage.fromDistanceM`). The flythrough moves along the CURVE, which is shorter at corners. The
+  spline's time IS the trail distance, so `curveDistanceForTrail` finds that time in
+  `tableTimes` (binary search) and reads the curve distance next to it.
+- **Where the camera lands.** `jumpTo` sets the current point to that curve distance + 600 m, so
+  the camera (600 m behind) stands at the day's start stop and looks ahead. Playing → keeps
+  playing; otherwise → "paused" there.
+- **A jump also highlights the day** via StageLayer with `flyTo = false`, so the highlight does
+  not fly the camera away while the flythrough moves it.
+- **Found while refactoring.** Moving preparation into `ensurePath()` added one more `await`
+  step, and two Play presses sharing one preparation could then both start a loop (camera at
+  double speed). A controller unit test caught it.
+- **Only the newest command counts (found in code review).** Play → (terrain still loading) →
+  a day in the stop list (pauses) → "Day 4": the old Play came back and started playing. Now
+  every command takes a number (`++this.request`); after waiting, play() and jumpTo() only act
+  if their number is still the newest. pause() takes a number too, which cancels the waiting
+  ones. This also replaces the double-loop guard.
+- **Out-and-back treks (found in code review).** On the way back the stage runs from further
+  along the line to less far (`isForwardStage` is false). The flythrough flies forwards only, so
+  those days get no jump button; a jump there would face the wrong way or finish at once.
 
 ## Key concepts from first principles
 
@@ -467,6 +499,21 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
     hears the button's `beforeExecute` event and pauses, so the home flight is not undone.
 42. **How do you test code that runs every animation frame?** — Replace `requestAnimationFrame`
     with a list and run the frames by hand with chosen timestamps; use a stub Viewer.
+43. **Why is speed state but Play a method call?** — Speed is a value the screen shows and a new
+    controller must get; Play is an event that must happen once per press.
+44. **Why buttons for the days and not a select?** — A closed select changes with the arrow keys
+    on Windows; acting on every change would jump once per key press.
+45. **The stage starts 7,431 m along the trail. Where does the flythrough jump to?** — The curve
+    distance at trail time 7,431 m (`curveDistanceForTrail`), plus 600 m, so the camera stands at
+    the start stop and looks ahead.
+46. **Why does a jump highlight the stage without flying there?** — The flythrough is moving the
+    camera; a fly-to would fight it. The stop list's day buttons do fly there, and pause first.
+47. **The user presses Play, then pauses while the terrain loads, then presses "Day 4". What
+    happens?** — Each press got a number; when the preparation finishes, only "Day 4" (the newest)
+    acts: the camera waits at day 4's start, paused. The old Play does nothing.
+48. **Why is there no jump button for the return days of an out-and-back trek?** — The
+    flythrough flies the stored line forwards; on the way back the day runs the other way, so a
+    jump would land at the wrong end and Resume would fly away from that day.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -504,6 +551,9 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
     `npx vitest run src/engine/flythrough`, and explain why the constant-speed test fails. Revert.
 16. Change `HEADING_TAU_S` to 0.1 and then to 5, play the flythrough on the synthetic route
     (`npm run dev` with the e2e fixtures, or a real route later) and describe the difference.
+17. On the L-shaped test path in `path.test.ts`, work out by hand roughly what
+    `curveDistanceForTrail(path, 2000)` should be compared with 2,000, and why it is smaller.
+    Then add it as a test.
 
 ## AI use in this part
 
@@ -527,8 +577,13 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
   keyboard-focus bug; all fixed. A code-reviewer subagent then found the home button being undone
   and smaller lifecycle problems; all fixed, with controller unit tests. Mutation checks confirmed
   the tests catch them.
+- **Issue #20 (2026-11-23):** Claude Code wrote `setSpeed`, `jumpTo`, `ensurePath`,
+  `curveDistanceForTrail`, the Speed and day controls, their tests, ADR-029 and this section. A
+  controller unit test caught a double animation loop during the refactor. A code-reviewer
+  subagent then found wrong jumps on out-and-back return days, cancelled presses coming back,
+  and e2e checks that could not fail; all fixed, with mutation checks.
 - **What you must still do:** read the engine files, run the tests and the app yourself, and do
-  exercises 2, 5–8 and 11–16 by hand.
+  exercises 2, 5–8 and 11–17 by hand.
 
 ## Changelog
 
@@ -546,3 +601,6 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
 - 2026-11-22 — M4 #19: flythrough walkthrough (pipeline, distance table, smoothing worked
   example, heading/pitch, outside React, testing finds), Q35–40, exercises 14–16, AI use.
   After code review: other camera movers pause it, missing terrain, controller tests, Q41–42.
+- 2026-11-23 — M4 #20: flythrough controls (speed as a value, day buttons, trail → curve
+  distance, jump landing point), Q43–46, exercise 17, AI use. After code review: request
+  numbers, forward stages only, Q47–48.

@@ -12,6 +12,7 @@ import {
   AHEAD_M,
   buildFlightPath,
   cameraPose,
+  curveDistanceForTrail,
   headingPitchTo,
   pointAt,
   resampleTrail,
@@ -147,6 +148,23 @@ describe('buildFlightPath + pointAt', () => {
 
   it('the curve is shorter than the trail, because it cuts the corner', () => {
     expect(path.lengthM).toBeLessThan(samples.distancesM.at(-1) ?? 0);
+  });
+
+  it('curveDistanceForTrail: same as the trail on the straight part, the curve end at the end', () => {
+    expect(curveDistanceForTrail(path, 500)).toBeCloseTo(500, 0); // before the corner
+    expect(curveDistanceForTrail(path, samples.distancesM.at(-1) ?? 0)).toBeCloseTo(
+      path.lengthM,
+      6,
+    );
+    expect(curveDistanceForTrail(path, -50)).toBe(0); // clamped
+  });
+
+  it('curveDistanceForTrail after the corner: the same place, a shorter distance', () => {
+    // 1,500 m along the trail is past the corner (at 1,112 m), where the curve has cut inside.
+    const curve = curveDistanceForTrail(path, 1500);
+    expect(curve).toBeLessThan(1500);
+    // pointAt(curve distance) is the same place as the spline at trail time 1,500 m.
+    expect(Cartesian3.distance(pointAt(path, curve), path.spline.evaluate(1500))).toBeLessThan(0.5);
   });
 
   it('equal steps in distance give equal steps on the ground (constant ground speed)', () => {

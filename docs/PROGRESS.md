@@ -5,6 +5,37 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-23 · M4 #20 Flythrough controls (owner: Sparsh)
+
+**Done**
+
+- PR #53 (#19 flythrough camera) merged after green CI and code-review fixes (ADR-021).
+- Speed select (0.5×–4×) and "Jump to the start of: Day N" buttons in the Trek tab (ADR-029).
+  A jump puts the camera at that day's start stop; it keeps playing if it was playing, otherwise
+  waits there. It also highlights the day's stage without flying the camera away.
+- `curveDistanceForTrail` converts a trail distance (from the stage maths) to the flythrough's
+  curve distance; stages now know where they start (`fromDistanceM`).
+- While moving preparation into one helper, a controller unit test caught a second animation
+  loop starting when two Play presses shared one preparation; fixed before committing.
+- Screenshot `docs/screenshots/m4-flythrough-synthetic.png` re-captured with the new controls.
+- Code review found: (1) return days of an out-and-back trek would jump to the wrong end of the
+  line (the flythrough flies forwards only) → jump buttons only for forward stages; (2) a press
+  cancelled while the terrain loaded could come back when a later command shared the
+  preparation → commands are numbered and only the newest acts; (3) e2e checks that could not
+  fail (speed only checked the select's value; jumping while playing was not verified) →
+  rewritten. Also: StageLayer's draw and fly split, full accessible names on the day buttons, a
+  full Tab walk through the Trek tab.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 136
+passed; `npm run e2e` 13 passed. Mutation checks, each made a test fail: no highlight on jump;
+camera not placed at the day's start; no request numbers (3 unit tests failed); no speed effect
+in App (the e2e speed test measured 454 m vs 304 m, both at 1×).
+
+**Team next**
+
+- Sparsh: do exercise 17; try the controls with the keyboard only.
+- Team: in the M7 questionnaire (#31), check that the two sets of day buttons are clear.
+
 ## 2026-11-22 · M4 #19 Flythrough camera (owner: Sparsh)
 
 **Done**

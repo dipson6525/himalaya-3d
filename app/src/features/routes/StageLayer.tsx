@@ -3,7 +3,12 @@
  * Owner: Sparsh Gorkhali. Related FR: FR2 (daily stages), issue #49.
  *
  * The stage is one extra polyline, wider than the trail, yellow with a black edge, clamped to the
- * ground like the trail. The camera then flies to it.
+ * ground like the trail. When `flyTo` is true (a day pressed in the stop list) the camera also
+ * flies to it; when false (the flythrough's "jump to day", #20) the flythrough moves the camera.
+ *
+ * Two effects, on purpose (like RouteLayer): DRAW runs when the stage changes; FLY runs when the
+ * stage or `flyTo` changes. So pressing the same day once in the stop list and once as a jump only
+ * changes the camera, the highlight stays (it is not removed and drawn again).
  *
  * Camera height: the trail has no heights, so points built from it sit at sea level. Aiming at
  * sea level on a short stage high in the mountains puts the camera's target below the terrain
@@ -39,14 +44,20 @@ const STAGE_COLOR = Color.fromCssColorString('#ffd166'); // same yellow as the s
 
 interface StageLayerProps {
   stage: Stage | null;
+  /**
+   * Fly the camera to the stage (true when a day is pressed in the stop list). False when the
+   * flythrough's "jump to day" chose it: the flythrough moves the camera itself then (#20).
+   */
+  flyTo: boolean;
   /** Called with the stage's end-stop id once it is on the globe, and with null when removed. */
   onDrawn?: (toStopId: string | null) => void;
 }
 
-/** Draws `stage` (or nothing) and flies the camera to it. Renders no HTML of its own. */
-export function StageLayer({ stage, onDrawn }: StageLayerProps) {
+/** Draws `stage` (or nothing) and, if `flyTo`, flies the camera to it. Renders no HTML. */
+export function StageLayer({ stage, flyTo, onDrawn }: StageLayerProps) {
   const viewer = useViewer();
 
+  // 1. DRAW
   useEffect(() => {
     if (!viewer || !stage) return;
     const positions = Cartesian3.fromDegreesArray(stage.path.flat());
@@ -77,6 +88,19 @@ export function StageLayer({ stage, onDrawn }: StageLayerProps) {
       onDrawn?.(stage.toStopId);
     });
 
+    return () => {
+      removed = true;
+      if (!viewer.isDestroyed()) {
+        viewer.dataSources.remove(dataSource); // no-op if the add has not finished yet (see above)
+        viewer.scene.requestRender();
+      }
+      onDrawn?.(null);
+    };
+  }, [viewer, stage, onDrawn]);
+
+  // 2. FLY (only for a day pressed in the stop list)
+  useEffect(() => {
+    if (!viewer || !stage || !flyTo) return;
     // Look at the stage from the south, 45° down, from three times its radius (at least 4 km),
     // aiming at the higher stop's altitude instead of sea level (see the header comment).
     const aimPoints = Cartesian3.fromDegreesArrayHeights(
@@ -91,17 +115,11 @@ export function StageLayer({ stage, onDrawn }: StageLayerProps) {
         Math.max(sphere.radius * 3, 4000),
       ),
     });
-
+    // Stop this fly-to if the stage changes before it has finished.
     return () => {
-      removed = true;
-      if (!viewer.isDestroyed()) {
-        viewer.camera.cancelFlight();
-        viewer.dataSources.remove(dataSource); // no-op if the add has not finished yet (see above)
-        viewer.scene.requestRender();
-      }
-      onDrawn?.(null);
+      if (!viewer.isDestroyed()) viewer.camera.cancelFlight();
     };
-  }, [viewer, stage, onDrawn]);
+  }, [viewer, stage, flyTo]);
 
   return null;
 }

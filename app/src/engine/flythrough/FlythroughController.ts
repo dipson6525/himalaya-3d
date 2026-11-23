@@ -17,6 +17,8 @@
  *   planned, the camera is lifted to MIN_ABOVE_GROUND_M above it.
  * - While playing, the user's mouse is switched off for the camera; otherwise the mouse and the
  *   flythrough would fight over it. pause(), the end and destroy() switch it back on.
+ * - setSpeed() changes the ground speed (a multiple of DEFAULT_SPEED_MPS); jumpTo() moves the
+ *   camera to a place along the trail, e.g. the start of a day (#20).
  * - Other things that move the camera PAUSE the flythrough: Cesium's home button and following
  *   an entity (double-click on a marker). Otherwise our per-frame setView would silently undo
  *   them (code review found this). Pressing a day in the stop list pauses it too (App.tsx).
@@ -27,6 +29,7 @@ import {
   BEHIND_M,
   buildFlightPath,
   cameraPose,
+  curveDistanceForTrail,
   headingPitchTo,
   raise,
   resampleTrail,
@@ -38,8 +41,10 @@ import {
 
 export type FlythroughStatus = 'idle' | 'preparing' | 'playing' | 'paused' | 'finished' | 'error';
 
-/** Ground speed of the camera, in metres per second (a 10 km day takes 40 s). */
+/** Ground speed of the camera at "1×", in metres per second (a 10 km day takes 40 s). */
 export const DEFAULT_SPEED_MPS = 250;
+/** The speeds offered in the controls, as multiples of DEFAULT_SPEED_MPS. */
+export const SPEED_CHOICES = [0.5, 1, 2, 4] as const;
 /** Time constant of the heading and pitch smoothing, in seconds (see smoothAngle). */
 export const HEADING_TAU_S = 1.5;
 /**
@@ -53,7 +58,7 @@ export const TERRAIN_LEVEL = 11;
 export const MIN_ABOVE_GROUND_M = 150;
 /** Longest time step used for one frame, in seconds (after a stall the camera does not jump). */
 const MAX_FRAME_S = 0.1;
-/** How long play() waits for World Terrain to finish loading, in milliseconds. */
+/** How long preparing waits for World Terrain to finish loading, in milliseconds. */
 const TERRAIN_WAIT_MS = 20_000;
 
 /** Called whenever the status changes; `distanceM` = how far along the flight line, in metres. */
@@ -62,9 +67,17 @@ export type StatusListener = (status: FlythroughStatus, distanceM: number) => vo
 export class FlythroughController {
   private status: FlythroughStatus = 'idle';
   private path: FlightPath | null = null;
-  /** The one running prepare(), shared if play() is pressed again while it runs. */
+  /** The one running prepare(), shared if play() or jumpTo() is pressed again while it runs. */
   private preparing: Promise<FlightPath> | null = null;
+  /**
+   * Number of the newest command (play, jumpTo, pause). play() and jumpTo() remember their number
+   * before they wait for the preparation; afterwards they only act if no newer command came in
+   * meanwhile. So a press the user has already cancelled (by pausing, or by pressing something
+   * else) never comes back, and two presses can never start two animation loops.
+   */
+  private request = 0;
   private distanceM = 0; // the "current point", metres along the flight line
+  private speedMps = DEFAULT_SPEED_MPS;
   private heading: number | null = null; // smoothed heading; null = start afresh
   private pitch = 0; // smoothed pitch
   private frame = 0; // id from requestAnimationFrame, 0 = no frame waiting
@@ -90,29 +103,11 @@ export class FlythroughController {
   /** Start, or continue after pause(). Starts again from the beginning once finished. */
   async play(): Promise<void> {
     if (this.destroyed || this.status === 'playing' || this.status === 'preparing') return;
-    if (!this.path) {
-      this.setStatus('preparing');
-      // Reuse a prepare() that is still running (the user paused and pressed play again),
-      // instead of sampling the terrain twice.
-      this.preparing ??= this.prepare();
-      try {
-        const path = await this.preparing;
-        // Store it and set the start position once, even if two play() calls shared the wait.
-        if (!this.path) {
-          this.path = path;
-          this.restartFromBeginning(path);
-        }
-      } catch (error) {
-        console.error('Could not prepare the flythrough', error);
-        this.preparing = null; // the next play() tries again
-        if (!this.destroyed && this.getStatus() === 'preparing') this.setStatus('error');
-        return;
-      }
-      // While we waited, the route may have changed (destroy), the user may have paused, or
-      // another play() call (sharing the same prepare) may already have started playing.
-      if (this.destroyed || this.getStatus() !== 'preparing') return;
-    }
-    if (this.status === 'finished') this.restartFromBeginning(this.path);
+    const mine = ++this.request;
+    const path = await this.ensurePath();
+    // Stop if preparing failed, the controller was destroyed, or a newer command came in.
+    if (!path || this.destroyed || mine !== this.request) return;
+    if (this.status === 'finished') this.restartFromBeginning(path);
     this.viewer.camera.cancelFlight(); // stop a fly-to that may still be running
     this.viewer.scene.screenSpaceCameraController.enableInputs = false;
     this.lastFrameTime = 0;
@@ -121,8 +116,41 @@ export class FlythroughController {
   }
 
   /**
-   * The current status. play() reads it through this method after its `await`: TypeScript
-   * narrowed `this.status` before the await and cannot see that pause() may have changed it.
+   * Change the speed, as a multiple of DEFAULT_SPEED_MPS (1 = 250 m/s). Takes effect from the
+   * next frame, so it works while playing.
+   */
+  setSpeed(multiplier: number): void {
+    // Written as !(x > 0) rather than x <= 0 so that NaN is refused too (NaN > 0 is false).
+    if (!(multiplier > 0)) throw new RangeError(`speed must be positive, got ${multiplier}`);
+    this.speedMps = DEFAULT_SPEED_MPS * multiplier;
+  }
+
+  /**
+   * Move the flythrough so the CAMERA is at the place `trailDistanceM` metres along the trail,
+   * looking ahead (the "current point" is then BEHIND_M further on). If it was playing it keeps
+   * playing from there; otherwise it waits there as 'paused', so Play / Resume starts from there.
+   * Prepares the flight line first if that has not happened yet.
+   * The flythrough always flies the line forwards, so only jump to places it flies FROM: the UI
+   * offers jumps for forward stages only (see isForwardStage in lib/geo/stages.ts).
+   */
+  async jumpTo(trailDistanceM: number): Promise<void> {
+    if (this.destroyed || this.status === 'preparing') return;
+    const mine = ++this.request;
+    const path = await this.ensurePath();
+    if (!path || this.destroyed || mine !== this.request) return;
+    this.distanceM = Math.min(curveDistanceForTrail(path, trailDistanceM) + BEHIND_M, path.lengthM);
+    this.heading = null; // look straight along the trail from the new place, no slow turn
+    this.viewer.camera.cancelFlight();
+    this.placeCamera(path, 0);
+    // Report the new distance: 'paused' if it was not playing; if it was, report 'playing' again
+    // so the UI's distance is not left at the old place.
+    this.setStatus(this.getStatus() === 'playing' ? 'playing' : 'paused');
+  }
+
+  /**
+   * The current status. play() and jumpTo() read it through this method after an `await`:
+   * TypeScript narrowed `this.status` before the await and cannot see that pause() may have
+   * changed it meanwhile.
    */
   getStatus(): FlythroughStatus {
     return this.status;
@@ -134,6 +162,7 @@ export class FlythroughController {
    */
   pause(): void {
     // (After destroy() this may still run from an old handler; setStatus then reports nothing.)
+    this.request++; // cancels a play() or jumpTo() that is still waiting for the preparation
     if (this.status === 'preparing') {
       this.setStatus('idle');
       return;
@@ -148,6 +177,34 @@ export class FlythroughController {
     this.destroyed = true;
     this.stopLoopAndGiveMouseBack();
     for (const stop of this.stopListening) stop();
+  }
+
+  /**
+   * The flight line, preparing it first if needed (status 'preparing' meanwhile). Returns null if
+   * preparing failed (status 'error') or the controller was destroyed. Whether the caller should
+   * still act is the caller's check (the request number, see `request`).
+   */
+  private async ensurePath(): Promise<FlightPath | null> {
+    if (this.path) return this.path;
+    this.setStatus('preparing');
+    // Reuse a prepare() that is still running (the user paused and pressed play again),
+    // instead of sampling the terrain twice.
+    this.preparing ??= this.prepare();
+    try {
+      const path = await this.preparing;
+      // Store it and set the start position once, even if two calls shared the wait.
+      if (!this.path) {
+        this.path = path;
+        this.restartFromBeginning(path);
+      }
+    } catch (error) {
+      console.error('Could not prepare the flythrough', error);
+      this.preparing = null; // the next play() or jumpTo() tries again
+      if (!this.destroyed && this.getStatus() === 'preparing') this.setStatus('error');
+      return null;
+    }
+    if (this.destroyed) return null;
+    return this.path;
   }
 
   /** Back to the start: the camera at the very start of the trail (see cameraPose). */
@@ -167,7 +224,7 @@ export class FlythroughController {
     const dtS = this.lastFrameTime ? Math.min((now - this.lastFrameTime) / 1000, MAX_FRAME_S) : 0;
     this.lastFrameTime = now;
 
-    this.distanceM = Math.min(this.distanceM + DEFAULT_SPEED_MPS * dtS, this.path.lengthM);
+    this.distanceM = Math.min(this.distanceM + this.speedMps * dtS, this.path.lengthM);
     this.placeCamera(this.path, dtS);
 
     if (this.distanceM >= this.path.lengthM) {
