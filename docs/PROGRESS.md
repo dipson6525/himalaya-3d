@@ -18,10 +18,18 @@ what the TEAM must do next, open questions.
 - While moving preparation into one helper, a controller unit test caught a second animation
   loop starting when two Play presses shared one preparation; fixed before committing.
 - Screenshot `docs/screenshots/m4-flythrough-synthetic.png` re-captured with the new controls.
+- Code review found: (1) return days of an out-and-back trek would jump to the wrong end of the
+  line (the flythrough flies forwards only) → jump buttons only for forward stages; (2) a press
+  cancelled while the terrain loaded could come back when a later command shared the
+  preparation → commands are numbered and only the newest acts; (3) e2e checks that could not
+  fail (speed only checked the select's value; jumping while playing was not verified) →
+  rewritten. Also: StageLayer's draw and fly split, full accessible names on the day buttons, a
+  full Tab walk through the Trek tab.
 
-**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 130
-passed; `npm run e2e` 12 passed. Mutation checks, each made a test fail: no highlight on jump;
-camera not placed at the day's start.
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 136
+passed; `npm run e2e` 13 passed. Mutation checks, each made a test fail: no highlight on jump;
+camera not placed at the day's start; no request numbers (3 unit tests failed); no speed effect
+in App (the e2e speed test measured 454 m vs 304 m, both at 1×).
 
 **Team next**
 

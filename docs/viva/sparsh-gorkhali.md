@@ -378,8 +378,15 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
   not fly the camera away while the flythrough moves it.
 - **Found while refactoring.** Moving preparation into `ensurePath()` added one more `await`
   step, and two Play presses sharing one preparation could then both start a loop (camera at
-  double speed). A controller unit test caught it; `play()` now stops if something already
-  started playing.
+  double speed). A controller unit test caught it.
+- **Only the newest command counts (found in code review).** Play → (terrain still loading) →
+  a day in the stop list (pauses) → "Day 4": the old Play came back and started playing. Now
+  every command takes a number (`++this.request`); after waiting, play() and jumpTo() only act
+  if their number is still the newest. pause() takes a number too, which cancels the waiting
+  ones. This also replaces the double-loop guard.
+- **Out-and-back treks (found in code review).** On the way back the stage runs from further
+  along the line to less far (`isForwardStage` is false). The flythrough flies forwards only, so
+  those days get no jump button; a jump there would face the wrong way or finish at once.
 
 ## Key concepts from first principles
 
@@ -501,6 +508,12 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
     the start stop and looks ahead.
 46. **Why does a jump highlight the stage without flying there?** — The flythrough is moving the
     camera; a fly-to would fight it. The stop list's day buttons do fly there, and pause first.
+47. **The user presses Play, then pauses while the terrain loads, then presses "Day 4". What
+    happens?** — Each press got a number; when the preparation finishes, only "Day 4" (the newest)
+    acts: the camera waits at day 4's start, paused. The old Play does nothing.
+48. **Why is there no jump button for the return days of an out-and-back trek?** — The
+    flythrough flies the stored line forwards; on the way back the day runs the other way, so a
+    jump would land at the wrong end and Resume would fly away from that day.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -566,7 +579,9 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
   the tests catch them.
 - **Issue #20 (2026-11-23):** Claude Code wrote `setSpeed`, `jumpTo`, `ensurePath`,
   `curveDistanceForTrail`, the Speed and day controls, their tests, ADR-029 and this section. A
-  controller unit test caught a double animation loop during the refactor.
+  controller unit test caught a double animation loop during the refactor. A code-reviewer
+  subagent then found wrong jumps on out-and-back return days, cancelled presses coming back,
+  and e2e checks that could not fail; all fixed, with mutation checks.
 - **What you must still do:** read the engine files, run the tests and the app yourself, and do
   exercises 2, 5–8 and 11–17 by hand.
 
@@ -587,4 +602,5 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
   example, heading/pitch, outside React, testing finds), Q35–40, exercises 14–16, AI use.
   After code review: other camera movers pause it, missing terrain, controller tests, Q41–42.
 - 2026-11-23 — M4 #20: flythrough controls (speed as a value, day buttons, trail → curve
-  distance, jump landing point), Q43–46, exercise 17, AI use.
+  distance, jump landing point), Q43–46, exercise 17, AI use. After code review: request
+  numbers, forward stages only, Q47–48.

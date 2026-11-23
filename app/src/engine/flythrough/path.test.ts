@@ -159,6 +159,14 @@ describe('buildFlightPath + pointAt', () => {
     expect(curveDistanceForTrail(path, -50)).toBe(0); // clamped
   });
 
+  it('curveDistanceForTrail after the corner: the same place, a shorter distance', () => {
+    // 1,500 m along the trail is past the corner (at 1,112 m), where the curve has cut inside.
+    const curve = curveDistanceForTrail(path, 1500);
+    expect(curve).toBeLessThan(1500);
+    // pointAt(curve distance) is the same place as the spline at trail time 1,500 m.
+    expect(Cartesian3.distance(pointAt(path, curve), path.spline.evaluate(1500))).toBeLessThan(0.5);
+  });
+
   it('equal steps in distance give equal steps on the ground (constant ground speed)', () => {
     // Step 50 m at a time from start to end and measure each step on the ground.
     const steps: number[] = [];

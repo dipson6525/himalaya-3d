@@ -26,7 +26,7 @@ import {
   type FlythroughStatus,
 } from '../../engine/flythrough/FlythroughController';
 import { t, type Language, type MessageKey } from '../../i18n';
-import type { Stage } from '../../lib/geo/stages';
+import { isForwardStage, type Stage } from '../../lib/geo/stages';
 
 interface FlythroughControlsProps {
   controller: FlythroughController | null;
@@ -61,7 +61,9 @@ export function FlythroughControls({
   stages,
   onJumpToDay,
 }: FlythroughControlsProps) {
-  const days = stages.filter((stage) => stage.lengthM > 0); // nothing to fly on a 0 m stage
+  // Jumps only where the flythrough can fly: not a 0 m stage, and not the way back of an
+  // out-and-back trek (the flythrough flies the trail line forwards only; ADR-029).
+  const days = stages.filter((stage) => stage.lengthM > 0 && isForwardStage(stage));
   const playing = status === 'playing';
   const preparing = status === 'preparing';
   return (
@@ -109,6 +111,9 @@ export function FlythroughControls({
               key={stage.toStopId}
               type="button"
               className="fly-day"
+              // Full name for screen readers ("Jump to the start of day 2"); it contains the
+              // visible "Day 2", so speech-input users can still say what they see.
+              aria-label={t('fly.jumpTo', language, { day: stage.day })}
               disabled={!controller}
               aria-disabled={preparing}
               onClick={() => {

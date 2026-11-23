@@ -37,13 +37,18 @@ test('pressing a day highlights its stage; pressing again or changing trek remov
   await expect(day4).toContainText('7.4 km along the trail from the previous stop');
   await expect(day2).toHaveAttribute('aria-pressed', 'false');
 
-  // Keyboard only: the flythrough controls come first in the panel; from their last button,
-  // Tab goes into the stop list, to the first day button; Enter presses it.
-  await page
-    .getByRole('group', { name: 'Jump to the start of:' })
-    .getByRole('button')
-    .last()
-    .focus();
+  // Keyboard only: walk the Trek tab with Tab, in order: trek selector → Play → Speed → the two
+  // jump buttons → the first day in the stop list; then Enter presses it.
+  await page.getByLabel('Choose a trek').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('flythrough-toggle')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.getByLabel('Speed')).toBeFocused();
+  const jumps = page.getByRole('group', { name: 'Jump to the start of a day' }).getByRole('button');
+  await page.keyboard.press('Tab');
+  await expect(jumps.nth(0)).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(jumps.nth(1)).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(day2).toBeFocused();
   await page.keyboard.press('Enter');

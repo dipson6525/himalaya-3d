@@ -8,7 +8,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { LonLat } from './distance';
-import { nearestPointOnLine, sliceLine, splitIntoStages, type StageStop } from './stages';
+import {
+  isForwardStage,
+  nearestPointOnLine,
+  sliceLine,
+  splitIntoStages,
+  type StageStop,
+} from './stages';
 
 const STEP_M = 1111.95; // 0.01° on the equator, rounded to cm
 
@@ -188,6 +194,11 @@ describe('splitIntoStages', () => {
     ]);
     const down = stages[1];
     expect(down.lengthM).toBeCloseTo(STEP_M, 1); // positive, although the distance went down
+    // The flythrough can only jump to forward stages (it flies the line forwards):
+    expect(isForwardStage(stages[0])).toBe(true); // start → top
+    expect(isForwardStage(down)).toBe(false); // top → back (the way down)
+    expect(down.fromDistanceM).toBeCloseTo(2 * STEP_M, 1);
+    expect(down.toDistanceM).toBeCloseTo(STEP_M, 1);
     expect(down.path[0][0]).toBeCloseTo(0.02, 9); // starts at the top…
     expect(down.path.at(-1)?.[0]).toBeCloseTo(0.01, 9); // …and ends lower down
   });

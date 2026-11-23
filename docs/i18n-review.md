@@ -37,7 +37,8 @@ add the reviewer's name, and fix `app/src/i18n/ne.json` if needed.
 | `fly.error` | The flythrough could not start. Press the button to try again. | उडान दृश्य सुरु हुन सकेन। फेरि प्रयास गर्न बटन थिच्नुहोस्। | Needs review | |
 | `fly.speed` | Speed | गति | Needs review | |
 | `fly.speedOption` | {speed}× | {speed}× | Needs review (keep {speed}) | |
-| `fly.jumpLabel` | Jump to the start of: | यसको सुरुमा जानुहोस्: | Needs review (word order: it introduces the "Day N" buttons) | |
+| `fly.jumpLabel` | Jump to the start of a day | कुनै दिनको सुरुमा जानुहोस् | Needs review (group label above the "Day N" buttons) | |
+| `fly.jumpTo` | Jump to the start of day {day} | दिन {day} को सुरुमा जानुहोस् | Needs review (keep {day}; the screen-reader name of each "Day N" button) | |
 | `fly.day` | Day {day} | दिन {day} | Needs review (keep {day}) | |
 | `layers.comingSoon` | Live earthquake and weather layers arrive with issues #25 and #26. | भूकम्प र मौसमका प्रत्यक्ष तहहरू इस्यु #२५ र #२६ मा आउँछन्। | Needs review | |
 | `disclaimer.medical` | Safety information in this app is general guidance only, not medical advice. … | यस एपको सुरक्षा जानकारी सामान्य मार्गदर्शन मात्र हो, चिकित्सा सल्लाह होइन। … | Needs review (safety wording — high priority) | |

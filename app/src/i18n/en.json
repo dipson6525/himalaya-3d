@@ -30,6 +30,7 @@
   "fly.error": "The flythrough could not start. Press the button to try again.",
   "fly.speed": "Speed",
   "fly.speedOption": "{speed}×",
-  "fly.jumpLabel": "Jump to the start of:",
-  "fly.day": "Day {day}"
+  "fly.jumpLabel": "Jump to the start of a day",
+  "fly.day": "Day {day}",
+  "fly.jumpTo": "Jump to the start of day {day}"
 }

@@ -30,6 +30,7 @@
   "fly.error": "उडान दृश्य सुरु हुन सकेन। फेरि प्रयास गर्न बटन थिच्नुहोस्।",
   "fly.speed": "गति",
   "fly.speedOption": "{speed}×",
-  "fly.jumpLabel": "यसको सुरुमा जानुहोस्:",
-  "fly.day": "दिन {day}"
+  "fly.jumpLabel": "कुनै दिनको सुरुमा जानुहोस्",
+  "fly.day": "दिन {day}",
+  "fly.jumpTo": "दिन {day} को सुरुमा जानुहोस्"
 }

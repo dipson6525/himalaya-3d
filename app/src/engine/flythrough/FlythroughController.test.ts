@@ -272,10 +272,71 @@ describe('FlythroughController', () => {
     runFrame(1000);
     await controller.jumpTo(3000);
     expect(statuses().at(-1)).toBe('playing'); // no pause in between
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(3600, 3); // the new place is reported
     runFrame(1100); // + 25 m
     controller.pause();
     expect(reports.at(-1)?.status).toBe('paused');
     expect(reports.at(-1)?.distanceM).toBeCloseTo(3625, 3);
+  });
+
+  it('a command cancelled while preparing never comes back (pause, then jump)', async () => {
+    // Play is pressed while the terrain loads, then a day in the stop list (which pauses), then
+    // "Day 4". Only the newest command counts: it waits at the jump point, it does not play.
+    const release = holdTerrain(1000);
+    const { controller, statuses } = setUp();
+    const play = controller.play();
+    controller.pause();
+    const jump = controller.jumpTo(2000);
+    release();
+    await Promise.all([play, jump]);
+    expect(statuses().at(-1)).toBe('paused');
+    expect(frames).toHaveLength(0); // no animation loop was started
+  });
+
+  it('a jump cancelled by pause does not move the camera when Play is pressed next', async () => {
+    const release = holdTerrain(1000);
+    const { controller, reports } = setUp();
+    const jump = controller.jumpTo(3000);
+    controller.pause();
+    const play = controller.play();
+    release();
+    await Promise.all([jump, play]);
+    // It plays from the start (current point 600 m), not from the cancelled jump (3,600 m).
+    expect(reports.at(-1)).toEqual({ status: 'playing', distanceM: 600 });
+    expect(frames).toHaveLength(1);
+  });
+
+  it('jumpTo is ignored while preparing (the button is greyed out then too)', async () => {
+    const release = holdTerrain(1000);
+    const { controller, statuses } = setUp();
+    const play = controller.play();
+    await controller.jumpTo(2000);
+    release();
+    await play;
+    expect(statuses()).toEqual(['preparing', 'playing']);
+    expect(sampleTerrain).toHaveBeenCalledTimes(1);
+  });
+
+  it('jumpTo after the end waits at the new place; Resume continues from there', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports } = setUp();
+    await controller.play();
+    for (let i = 0; i < 1000 && frames.length > 0; i++) runFrame(1000 + i * 100);
+    expect(reports.at(-1)?.status).toBe('finished');
+
+    await controller.jumpTo(1000);
+    expect(reports.at(-1)?.status).toBe('paused');
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(1600, 3);
+    await controller.play();
+    expect(reports.at(-1)?.status).toBe('playing');
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(1600, 3); // not restarted at 600
+  });
+
+  it('a jump near the end is kept on the path', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports } = setUp();
+    await controller.jumpTo(5500); // + 600 m would be past the 5,560 m end
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(5560, -1);
   });
 
   it('the safety guard lifts the camera above loaded terrain and aims down from there', async () => {

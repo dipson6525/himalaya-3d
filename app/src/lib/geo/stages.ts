@@ -130,6 +130,8 @@ export interface Stage {
   lengthM: number;
   /** Where the stage starts: metres along the trail to the previous stop (for "jump to day"). */
   fromDistanceM: number;
+  /** Where the stage ends: metres along the trail to its end stop. */
+  toDistanceM: number;
   /** The trail between the two stops, starting at the previous stop. */
   path: LonLat[];
   /**
@@ -160,9 +162,19 @@ export function splitIntoStages(line: readonly LonLat[], stops: readonly StageSt
       day: inDayOrder[k].day,
       lengthM: Math.abs(toM - fromM),
       fromDistanceM: fromM,
+      toDistanceM: toM,
       path: sliceLine(line, fromM, toM, cumulative),
       topAltitudeM: Math.max(inDayOrder[k - 1].altitudeM, inDayOrder[k].altitudeM),
     });
   }
   return stages;
+}
+
+/**
+ * True if the stage is walked in the direction the trail line is stored (its end is further
+ * along than its start). The flythrough flies the line forwards only, so it can jump to the start
+ * of these stages; the way back of an out-and-back trek (end before start) is not offered (#20).
+ */
+export function isForwardStage(stage: Stage): boolean {
+  return stage.toDistanceM > stage.fromDistanceM;
 }

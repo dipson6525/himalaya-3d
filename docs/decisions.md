@@ -469,10 +469,24 @@ ADR-028). Daily stages exist since #49 (ADR-027).
   it was playing it keeps playing; otherwise it waits there as "paused" (Resume starts there).
 - A jump also highlights that day's stage, but `StageLayer` gets `flyTo = false` so it does not
   fly the camera away from the flythrough. Pressing a day in the stop list still flies there
-  and pauses the flythrough.
+  and pauses the flythrough. `StageLayer` draws and flies in two separate effects, so the same
+  day pressed both ways keeps its highlight.
+- Jump buttons only for stages walked FORWARDS along the stored trail line (`isForwardStage`).
+  The flythrough flies the line forwards only; on the way back of an out-and-back trek (end
+  before start) a jump would land at the wrong end, and Resume would fly away from the day or
+  finish at once (code review found this). Those days keep their stop-list button.
+- Each command (play, jumpTo, pause) gets a number; play() and jumpTo() only act after waiting
+  for the preparation if no newer command came in. A press the user already cancelled never
+  comes back, and two presses can never start two animation loops (code review found a case).
+- Each day button's accessible name is "Jump to the start of day N" (contains the visible
+  "Day N"); the group label "Jump to the start of a day" stands on its own, instead of a label
+  and button text glued into one English-order sentence.
 **Alternatives:** a speed slider (harder to label with exact values and to use precisely with a
 keyboard); one set of day buttons doing both jobs (the same press would mean different things
 depending on whether the flythrough is running).
 **Consequences:** Two sets of day buttons in the Trek tab with different jobs: the flythrough's
 ("jump the flythrough here") and the stop list's ("show me this day"). TODO(team): check with
-the M7 questionnaire (#31) whether users find that clear.
+the M7 questionnaire (#31) whether users find that clear. Out-and-back treks get no flythrough
+jump for their return days, and the flythrough never flies them backwards. Heading smoothing is
+time-based, so at 4× the camera turns later along the trail than at 1× (a possible later
+improvement).

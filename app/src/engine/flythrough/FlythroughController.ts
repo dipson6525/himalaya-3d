@@ -58,7 +58,7 @@ export const TERRAIN_LEVEL = 11;
 export const MIN_ABOVE_GROUND_M = 150;
 /** Longest time step used for one frame, in seconds (after a stall the camera does not jump). */
 const MAX_FRAME_S = 0.1;
-/** How long play() waits for World Terrain to finish loading, in milliseconds. */
+/** How long preparing waits for World Terrain to finish loading, in milliseconds. */
 const TERRAIN_WAIT_MS = 20_000;
 
 /** Called whenever the status changes; `distanceM` = how far along the flight line, in metres. */
@@ -67,8 +67,15 @@ export type StatusListener = (status: FlythroughStatus, distanceM: number) => vo
 export class FlythroughController {
   private status: FlythroughStatus = 'idle';
   private path: FlightPath | null = null;
-  /** The one running prepare(), shared if play() is pressed again while it runs. */
+  /** The one running prepare(), shared if play() or jumpTo() is pressed again while it runs. */
   private preparing: Promise<FlightPath> | null = null;
+  /**
+   * Number of the newest command (play, jumpTo, pause). play() and jumpTo() remember their number
+   * before they wait for the preparation; afterwards they only act if no newer command came in
+   * meanwhile. So a press the user has already cancelled (by pausing, or by pressing something
+   * else) never comes back, and two presses can never start two animation loops.
+   */
+  private request = 0;
   private distanceM = 0; // the "current point", metres along the flight line
   private speedMps = DEFAULT_SPEED_MPS;
   private heading: number | null = null; // smoothed heading; null = start afresh
@@ -96,11 +103,10 @@ export class FlythroughController {
   /** Start, or continue after pause(). Starts again from the beginning once finished. */
   async play(): Promise<void> {
     if (this.destroyed || this.status === 'playing' || this.status === 'preparing') return;
+    const mine = ++this.request;
     const path = await this.ensurePath();
-    if (!path) return; // failed, cancelled, or the user paused while it was preparing
-    // Two play() calls can share one preparation; both get here. Only the first may start the
-    // animation loop, otherwise there would be two loops moving the camera twice as fast.
-    if (this.destroyed || this.getStatus() === 'playing') return;
+    // Stop if preparing failed, the controller was destroyed, or a newer command came in.
+    if (!path || this.destroyed || mine !== this.request) return;
     if (this.status === 'finished') this.restartFromBeginning(path);
     this.viewer.camera.cancelFlight(); // stop a fly-to that may still be running
     this.viewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -114,6 +120,7 @@ export class FlythroughController {
    * next frame, so it works while playing.
    */
   setSpeed(multiplier: number): void {
+    // Written as !(x > 0) rather than x <= 0 so that NaN is refused too (NaN > 0 is false).
     if (!(multiplier > 0)) throw new RangeError(`speed must be positive, got ${multiplier}`);
     this.speedMps = DEFAULT_SPEED_MPS * multiplier;
   }
@@ -123,21 +130,27 @@ export class FlythroughController {
    * looking ahead (the "current point" is then BEHIND_M further on). If it was playing it keeps
    * playing from there; otherwise it waits there as 'paused', so Play / Resume starts from there.
    * Prepares the flight line first if that has not happened yet.
+   * The flythrough always flies the line forwards, so only jump to places it flies FROM: the UI
+   * offers jumps for forward stages only (see isForwardStage in lib/geo/stages.ts).
    */
   async jumpTo(trailDistanceM: number): Promise<void> {
     if (this.destroyed || this.status === 'preparing') return;
+    const mine = ++this.request;
     const path = await this.ensurePath();
-    if (!path) return;
+    if (!path || this.destroyed || mine !== this.request) return;
     this.distanceM = Math.min(curveDistanceForTrail(path, trailDistanceM) + BEHIND_M, path.lengthM);
     this.heading = null; // look straight along the trail from the new place, no slow turn
     this.viewer.camera.cancelFlight();
     this.placeCamera(path, 0);
-    if (this.getStatus() !== 'playing') this.setStatus('paused');
+    // Report the new distance: 'paused' if it was not playing; if it was, report 'playing' again
+    // so the UI's distance is not left at the old place.
+    this.setStatus(this.getStatus() === 'playing' ? 'playing' : 'paused');
   }
 
   /**
-   * The current status. play() reads it through this method after its `await`: TypeScript
-   * narrowed `this.status` before the await and cannot see that pause() may have changed it.
+   * The current status. play() and jumpTo() read it through this method after an `await`:
+   * TypeScript narrowed `this.status` before the await and cannot see that pause() may have
+   * changed it meanwhile.
    */
   getStatus(): FlythroughStatus {
     return this.status;
@@ -149,6 +162,7 @@ export class FlythroughController {
    */
   pause(): void {
     // (After destroy() this may still run from an old handler; setStatus then reports nothing.)
+    this.request++; // cancels a play() or jumpTo() that is still waiting for the preparation
     if (this.status === 'preparing') {
       this.setStatus('idle');
       return;
@@ -167,8 +181,8 @@ export class FlythroughController {
 
   /**
    * The flight line, preparing it first if needed (status 'preparing' meanwhile). Returns null if
-   * preparing failed (status 'error'), the controller was destroyed, or the status changed while
-   * waiting (the user paused, or another call sharing the same preparation got there first).
+   * preparing failed (status 'error') or the controller was destroyed. Whether the caller should
+   * still act is the caller's check (the request number, see `request`).
    */
   private async ensurePath(): Promise<FlightPath | null> {
     if (this.path) return this.path;
@@ -185,11 +199,11 @@ export class FlythroughController {
       }
     } catch (error) {
       console.error('Could not prepare the flythrough', error);
-      this.preparing = null; // the next play() tries again
+      this.preparing = null; // the next play() or jumpTo() tries again
       if (!this.destroyed && this.getStatus() === 'preparing') this.setStatus('error');
       return null;
     }
-    if (this.destroyed || this.getStatus() !== 'preparing') return null;
+    if (this.destroyed) return null;
     return this.path;
   }
 
