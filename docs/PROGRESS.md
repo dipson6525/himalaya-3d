@@ -23,9 +23,18 @@ what the TEAM must do next, open questions.
   focus while preparing → `aria-disabled` instead.
 - Screenshot `docs/screenshots/m4-flythrough-synthetic.png` (synthetic route, real terrain).
 
-**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 114
+- Code review found: the home button (and following an entity) was silently undone by a
+  running flythrough → both now pause it. Also fixed: failed terrain tiles counted as 0 m (now the
+  highest height found), pitch not re-aimed after the safety lift (now re-aimed and smoothed), a
+  second preparation when Play was pressed again, a "Resume" label for a flythrough that never
+  started, the camera standing still for the first 600 m. New: 8 controller unit tests with a
+  stub Viewer and hand-driven animation frames.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 125
 passed; `npm run e2e` 11 passed. Mutation checks, each made a test fail: removing the curve's
-distance table (unit test: steps 37.5–62.5 m instead of 50 m); removing "pause on day".
+distance table (unit test: steps 37.5–62.5 m instead of 50 m); removing "pause on day"; and 7
+controller mutations (no prepare reuse, no home-button pause, status after destroy, failed tiles
+as 0 m, no re-aim after the lift, "paused" while preparing, camera starting at 0).
 
 **Team next**
 

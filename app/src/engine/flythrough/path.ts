@@ -17,8 +17,8 @@
  *    the curve cuts inside the trail and is shorter than it.
  * 4. cameraPose: the camera sits BEHIND_M behind and UP_M above the current point and looks at the
  *    point AHEAD_M ahead. Heading and pitch come from that direction.
- * 5. smoothAngle: the heading is smoothed (exponential smoothing), so a zig-zag in the trail does
- *    not swing the camera from side to side.
+ * 5. smoothAngle / smoothValue: heading and pitch are smoothed (exponential smoothing), so a
+ *    zig-zag in the trail does not swing the camera from side to side or up and down.
  *
  * Only Cesium's maths classes are used (no Viewer), so all of this runs in Vitest under Node.
  */
@@ -199,23 +199,33 @@ export function smoothAngle(current: number, target: number, dtS: number, tauS: 
   return wrapTo2Pi(current + alpha * wrapToPi(target - current));
 }
 
+/** The same exponential smoothing for a value that does not wrap round (used for the pitch). */
+export function smoothValue(current: number, target: number, dtS: number, tauS: number): number {
+  const alpha = 1 - Math.exp(-dtS / tauS);
+  return current + alpha * (target - current);
+}
+
 /** Where the camera is and where it looks. */
 export interface CameraPose {
   position: Cartesian3;
+  /** The look-ahead point the camera looks at. */
+  target: Cartesian3;
   /** Direction to the look-ahead point (before smoothing). */
   heading: number;
   pitch: number;
 }
 
 /**
- * The camera for distance `s`: BEHIND_M back along the flight line and UP_M higher, looking at
- * the point AHEAD_M ahead. Near the start and end the two points are clamped to the path.
+ * The camera for distance `s` (the "current point"): BEHIND_M back along the flight line and
+ * UP_M higher, looking at the point AHEAD_M ahead. Near the start and end the two points are
+ * clamped to the path. (The controller therefore starts at s = BEHIND_M, where the camera is at
+ * the very start of the trail, so the camera moves from the first frame.)
  */
 export function cameraPose(path: FlightPath, s: number): CameraPose {
   const behind = pointAt(path, s - BEHIND_M);
   const position = raise(behind, UP_M);
   const target = pointAt(path, s + AHEAD_M);
-  return { position, ...headingPitchTo(position, target) };
+  return { position, target, ...headingPitchTo(position, target) };
 }
 
 /** The same place, `metres` higher. */

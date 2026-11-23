@@ -49,9 +49,11 @@ test('play, pause and resume the flythrough with the keyboard', async ({ page })
     await saveScreenshot(page, SCREENSHOT); // paused, so the view stays still while tiles load
   }
 
-  // Resume continues from where it stopped, not from the start.
+  // Resume continues from where it stopped, not from the start: at the moment it starts
+  // playing again, the reported distance is exactly where it paused.
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('data-status', 'playing');
+  await expect(toggle).toHaveAttribute('data-distance', String(firstStop));
   await page.waitForTimeout(1000);
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('data-status', 'paused');

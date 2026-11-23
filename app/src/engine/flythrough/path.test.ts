@@ -5,7 +5,7 @@
  * Lines on the equator keep the numbers checkable by hand: 0.01° of longitude = 1,111.95 m.
  * Only Cesium's maths classes are used, so this runs in Node without a browser.
  */
-import { Cartographic } from 'cesium';
+import { Cartesian3, Cartographic } from 'cesium';
 import { describe, expect, it } from 'vitest';
 import { haversineM, type LonLat } from '../../lib/geo/distance';
 import {
@@ -17,11 +17,11 @@ import {
   resampleTrail,
   safeHeights,
   smoothAngle,
+  smoothValue,
   UP_M,
   wrapTo2Pi,
   wrapToPi,
 } from './path';
-import { Cartesian3 } from 'cesium';
 
 const DEG = Math.PI / 180;
 
@@ -89,6 +89,17 @@ describe('angles', () => {
   it('after a long time the smoothed angle reaches the target', () => {
     expect(smoothAngle(0, 1, 100, 1)).toBeCloseTo(1, 9);
   });
+
+  it('gives the same result at any frame rate: two half-frames = one whole frame', () => {
+    // (1 − α_half)² = (e^(−dt/2τ))² = e^(−dt/τ) = 1 − α_whole
+    const half = smoothAngle(smoothAngle(0, 1, 0.05, 1.5), 1, 0.05, 1.5);
+    expect(half).toBeCloseTo(smoothAngle(0, 1, 0.1, 1.5), 12);
+  });
+
+  it('smoothValue does the same for the pitch (no wrapping round)', () => {
+    // From −10° towards −40° for one time constant: −10 − 30 × 0.632 = −28.96°
+    expect(smoothValue(-10, -40, 1.5, 1.5)).toBeCloseTo(-10 - 30 * (1 - Math.exp(-1)), 9);
+  });
 });
 
 describe('headingPitchTo', () => {
@@ -125,11 +136,17 @@ describe('buildFlightPath + pointAt', () => {
     samples.points.map(() => 500),
   );
 
-  it('passes through every sample at its height', () => {
-    const [lon, lat, height] = lonLatHeight(pointAt(path, samples.distancesM[5]));
-    expect(lon).toBeCloseTo(samples.points[5][0], 7);
-    expect(lat).toBeCloseTo(samples.points[5][1], 7);
-    expect(height).toBeCloseTo(500, 3);
+  it('the spline passes through every sample at its height', () => {
+    samples.distancesM.forEach((time, k) => {
+      const [lon, lat, height] = lonLatHeight(path.spline.evaluate(time));
+      expect(lon).toBeCloseTo(samples.points[k][0], 7);
+      expect(lat).toBeCloseTo(samples.points[k][1], 7);
+      expect(height).toBeCloseTo(500, 3);
+    });
+  });
+
+  it('the curve is shorter than the trail, because it cuts the corner', () => {
+    expect(path.lengthM).toBeLessThan(samples.distancesM.at(-1) ?? 0);
   });
 
   it('equal steps in distance give equal steps on the ground (constant ground speed)', () => {

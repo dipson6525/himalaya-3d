@@ -151,7 +151,8 @@ Four rules keep this simple and fast:
   can never be out of date.
 - **Per-frame values stay out of React.** During a flythrough the camera position changes about
   60 times a second. Putting it in React state would re-render the page every frame. The camera
-  position lives inside `FlythroughCamera` (Cesium's own render loop).
+  position lives inside `FlythroughController`, which runs its own `requestAnimationFrame` loop
+  (ADR-028).
 - **Fast-changing values get their own small context.** Moving the mouse over the chart changes
   `profileHighlightM` many times a second. In `AppState` it would re-render every component that
   reads `AppState`; in `ProfileHoverContext` it re-renders only the chart and the marker. The

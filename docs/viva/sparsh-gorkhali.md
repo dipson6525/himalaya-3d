@@ -301,10 +301,12 @@ trail (uneven points)
   → safeHeights: highest ground within ±5 samples (±500 m) + 250 m
   → buildFlightPath: CatmullRomSpline(times = ground distance, points = ECEF x, y, z)
                      + distance table: spline sampled every 10 m of time, haversine added up
+start:        s = 600 m (so the camera, 600 m behind s, is at the very start of the trail)
 every frame:  s += 250 m/s × dt          (dt = seconds since the last frame, at most 0.1)
   → cameraPose(s): camera = point(s − 600) raised 300 m; looks at point(s + 800)
-  → heading smoothed: h += α · (shortest turn to target),  α = 1 − e^(−dt / 1.5 s)
   → guard: at least 150 m above the terrain loaded under the camera
+  → aim from where the camera really is: heading and pitch to the look-ahead point
+  → smooth both: h += α · (shortest turn to target), p += α · (target − p), α = 1 − e^(−dt/1.5 s)
   → camera.setView(...) and scene.requestRender()
 ```
 
@@ -329,6 +331,20 @@ class with one `requestAnimationFrame` loop; React only keeps the controller and
 (idle / preparing / playing / paused / finished / error), which changes a few times per flight.
 The Play button calls `play()` / `pause()` ("commands are method calls"). `FlythroughLayer`
 creates one controller per route and destroys it when the route changes.
+
+**Who else moves the camera (found in code review).** The home button, following an entity
+(double-click on a marker) and the day buttons all move the camera. A running flythrough would
+undo them in the next frame (`setView` does not cancel their flights), so each of them pauses it.
+The controller listens to `homeButton.viewModel.command.beforeExecute` and
+`trackedEntityChanged`, and removes those listeners in `destroy()`.
+
+**Missing terrain.** If a terrain tile fails, its heights come back undefined. Counting them as
+0 m would fly into the mountains, so they count as the highest height found on the route.
+
+**Testing the controller without a browser.** `FlythroughController.test.ts` gives it a stub
+Viewer (a plain object with only what it uses), replaces `sampleTerrain`, and replaces
+`requestAnimationFrame` with a list the test runs one frame at a time. A mutation run undid seven
+fixes one by one; each made a test fail.
 
 **Found while testing.** (1) Pressing Play while World Terrain was still loading failed: Cesium
 leaves `terrainProvider` undefined until it is ready, so `play()` waits for
@@ -447,6 +463,10 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
     state would re-render the page every frame. React only keeps its status.
 40. **Why aria-disabled and not disabled on the Play button?** — A disabled button loses keyboard
     focus; the user's next Enter (to pause) would do nothing.
+41. **What happens if the user presses the home button during a flythrough?** — The controller
+    hears the button's `beforeExecute` event and pauses, so the home flight is not undone.
+42. **How do you test code that runs every animation frame?** — Replace `requestAnimationFrame`
+    with a list and run the frames by hand with chosen timestamps; use a stub Viewer.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -504,7 +524,9 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
 - **Issue #19 (2026-11-22):** Claude Code wrote `path.ts` (+ test), `FlythroughController.ts`,
   `FlythroughLayer.tsx`, `FlythroughControls.tsx`, the e2e test, ADR-028 and this section. The
   tests found uneven speed (fixed with the curve's distance table), a terrain-loading race and a
-  keyboard-focus bug; all fixed. Mutation checks confirmed the tests catch them.
+  keyboard-focus bug; all fixed. A code-reviewer subagent then found the home button being undone
+  and smaller lifecycle problems; all fixed, with controller unit tests. Mutation checks confirmed
+  the tests catch them.
 - **What you must still do:** read the engine files, run the tests and the app yourself, and do
   exercises 2, 5–8 and 11–16 by hand.
 
@@ -523,3 +545,4 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
   drawing order), Q27–32, exercises 11–13, AI use. After code review: camera height, Q33–34.
 - 2026-11-22 — M4 #19: flythrough walkthrough (pipeline, distance table, smoothing worked
   example, heading/pitch, outside React, testing finds), Q35–40, exercises 14–16, AI use.
+  After code review: other camera movers pause it, missing terrain, controller tests, Q41–42.

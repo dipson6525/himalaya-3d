@@ -27,5 +27,5 @@
   "fly.resume": "Resume flythrough",
   "fly.pause": "Pause flythrough",
   "fly.preparing": "Preparing flythrough…",
-  "fly.error": "The flythrough could not start. Reload the page and try again."
+  "fly.error": "The flythrough could not start. Press the button to try again."
 }

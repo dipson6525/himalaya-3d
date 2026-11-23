@@ -4,7 +4,9 @@
  *
  * "Commands are method calls, not state" (docs/ui-design.md): pressing the button calls
  * controller.play() or controller.pause(); the controller reports its status back, and the label
- * follows the status. The button is disabled while there is no controller (no route shown yet).
+ * follows the status. The button is only shown once a route is loaded; it is disabled if there
+ * is still no controller, which means the 3D globe itself could not start (for example no WebGL;
+ * Cesium then shows its own error message in the globe area).
  *
  * While the flight line is being prepared the button only LOOKS disabled (aria-disabled) and
  * ignores presses. A really `disabled` button loses keyboard focus: a keyboard user who pressed
