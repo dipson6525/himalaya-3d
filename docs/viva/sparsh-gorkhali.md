@@ -352,9 +352,34 @@ leaves `terrainProvider` undefined until it is ready, so `play()` waits for
 disabled button loses keyboard focus, so a keyboard user's next Enter did nothing; it now uses
 `aria-disabled` and ignores presses.
 
-**Limits.** Terrain level 11 is coarse (about 140 m between samples): the ±500 m maximum, the
-250 m clearance and the runtime guard cover that. Speed and heights still need checking on real
-treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#12.
+**Limits.** Terrain level 11 is coarse (a tile is 0.088°, about 9.8 km; Cesium World Terrain is
+an irregular mesh, so the spacing of heights inside a tile varies, TODO(team): verify over Nepal):
+the ±500 m maximum, the 250 m clearance and the runtime guard cover that. Speed and heights still
+need checking on real treks, and the FPS on the team's laptops (#29). TODO(team): verify after
+#9–#12.
+
+### Flythrough controls (`FlythroughControls.tsx`, issue #20)
+
+- **Speed** is a native select (0.5×, 1×, 2×, 4× of 250 m/s). It is a *value*, so it is
+  `useState` in `App`, and an effect on [controller, speed] calls `controller.setSpeed()`. That
+  same effect gives a new trek's controller the chosen speed. Compare Play: an *event*, so a
+  method call (ui-design, "commands are method calls").
+- **Jump to the start of day N** is one button per day that has a stage. Not a select: Chromium
+  on Windows changes a closed select with the arrow keys, so a keyboard user would jump once per
+  key press.
+- **Trail distance → curve distance.** A stage starts at a distance along the TRAIL
+  (`Stage.fromDistanceM`). The flythrough moves along the CURVE, which is shorter at corners. The
+  spline's time IS the trail distance, so `curveDistanceForTrail` finds that time in
+  `tableTimes` (binary search) and reads the curve distance next to it.
+- **Where the camera lands.** `jumpTo` sets the current point to that curve distance + 600 m, so
+  the camera (600 m behind) stands at the day's start stop and looks ahead. Playing → keeps
+  playing; otherwise → "paused" there.
+- **A jump also highlights the day** via StageLayer with `flyTo = false`, so the highlight does
+  not fly the camera away while the flythrough moves it.
+- **Found while refactoring.** Moving preparation into `ensurePath()` added one more `await`
+  step, and two Play presses sharing one preparation could then both start a loop (camera at
+  double speed). A controller unit test caught it; `play()` now stops if something already
+  started playing.
 
 ## Key concepts from first principles
 
@@ -467,6 +492,15 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
     hears the button's `beforeExecute` event and pauses, so the home flight is not undone.
 42. **How do you test code that runs every animation frame?** — Replace `requestAnimationFrame`
     with a list and run the frames by hand with chosen timestamps; use a stub Viewer.
+43. **Why is speed state but Play a method call?** — Speed is a value the screen shows and a new
+    controller must get; Play is an event that must happen once per press.
+44. **Why buttons for the days and not a select?** — A closed select changes with the arrow keys
+    on Windows; acting on every change would jump once per key press.
+45. **The stage starts 7,431 m along the trail. Where does the flythrough jump to?** — The curve
+    distance at trail time 7,431 m (`curveDistanceForTrail`), plus 600 m, so the camera stands at
+    the start stop and looks ahead.
+46. **Why does a jump highlight the stage without flying there?** — The flythrough is moving the
+    camera; a fly-to would fight it. The stop list's day buttons do fly there, and pause first.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -504,6 +538,9 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
     `npx vitest run src/engine/flythrough`, and explain why the constant-speed test fails. Revert.
 16. Change `HEADING_TAU_S` to 0.1 and then to 5, play the flythrough on the synthetic route
     (`npm run dev` with the e2e fixtures, or a real route later) and describe the difference.
+17. On the L-shaped test path in `path.test.ts`, work out by hand roughly what
+    `curveDistanceForTrail(path, 2000)` should be compared with 2,000, and why it is smaller.
+    Then add it as a test.
 
 ## AI use in this part
 
@@ -527,8 +564,11 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
   keyboard-focus bug; all fixed. A code-reviewer subagent then found the home button being undone
   and smaller lifecycle problems; all fixed, with controller unit tests. Mutation checks confirmed
   the tests catch them.
+- **Issue #20 (2026-11-23):** Claude Code wrote `setSpeed`, `jumpTo`, `ensurePath`,
+  `curveDistanceForTrail`, the Speed and day controls, their tests, ADR-029 and this section. A
+  controller unit test caught a double animation loop during the refactor.
 - **What you must still do:** read the engine files, run the tests and the app yourself, and do
-  exercises 2, 5–8 and 11–16 by hand.
+  exercises 2, 5–8 and 11–17 by hand.
 
 ## Changelog
 
@@ -546,3 +586,5 @@ treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#1
 - 2026-11-22 — M4 #19: flythrough walkthrough (pipeline, distance table, smoothing worked
   example, heading/pitch, outside React, testing finds), Q35–40, exercises 14–16, AI use.
   After code review: other camera movers pause it, missing terrain, controller tests, Q41–42.
+- 2026-11-23 — M4 #20: flythrough controls (speed as a value, day buttons, trail → curve
+  distance, jump landing point), Q43–46, exercise 17, AI use.

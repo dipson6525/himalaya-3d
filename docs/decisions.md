@@ -451,3 +451,28 @@ is an irregular mesh, so the spacing of heights inside it varies, TODO(team): ve
 the window maximum, the clearance and the runtime guard cover that. Whether the speed and heights feel right on real
 treks, and the frame rate on the team's laptops (NFR1, #29), must be checked by the team.
 TODO(team): verify on real routes after #9–#12.
+
+## ADR-029 · Flythrough controls: speed as a value, days as buttons (Sparsh, 2026-11-23)
+
+**Context:** Issue #20 (FR3): play, pause, speed and "jump to day N" for the flythrough (#19,
+ADR-028). Daily stages exist since #49 (ADR-027).
+**Decision:**
+- Speed is a native `<select>` with 0.5×, 1×, 2×, 4× of 250 m/s. It is a value the user sets,
+  so it lives in `App` state; an effect on [controller, speed] calls `controller.setSpeed()`,
+  which also gives a new trek's controller the chosen speed. It takes effect from the next frame.
+- "Jump to the start of: Day N" is one button per day that has a stage (rest days have none),
+  not a `<select>`: a select that acts on every change would jump once per arrow-key press for
+  keyboard users (Chromium on Windows changes a closed select with the arrow keys).
+- `controller.jumpTo(trailDistance)` puts the camera at the day's start stop, looking ahead. The
+  stage maths gives that place as a distance along the TRAIL; the flythrough moves along the
+  CURVE, so `curveDistanceForTrail` reads the curve's distance table the other way round. If
+  it was playing it keeps playing; otherwise it waits there as "paused" (Resume starts there).
+- A jump also highlights that day's stage, but `StageLayer` gets `flyTo = false` so it does not
+  fly the camera away from the flythrough. Pressing a day in the stop list still flies there
+  and pauses the flythrough.
+**Alternatives:** a speed slider (harder to label with exact values and to use precisely with a
+keyboard); one set of day buttons doing both jobs (the same press would mean different things
+depending on whether the flythrough is running).
+**Consequences:** Two sets of day buttons in the Trek tab with different jobs: the flythrough's
+("jump the flythrough here") and the stop list's ("show me this day"). TODO(team): check with
+the M7 questionnaire (#31) whether users find that clear.

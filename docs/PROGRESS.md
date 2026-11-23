@@ -5,6 +5,29 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-23 · M4 #20 Flythrough controls (owner: Sparsh)
+
+**Done**
+
+- PR #53 (#19 flythrough camera) merged after green CI and code-review fixes (ADR-021).
+- Speed select (0.5×–4×) and "Jump to the start of: Day N" buttons in the Trek tab (ADR-029).
+  A jump puts the camera at that day's start stop; it keeps playing if it was playing, otherwise
+  waits there. It also highlights the day's stage without flying the camera away.
+- `curveDistanceForTrail` converts a trail distance (from the stage maths) to the flythrough's
+  curve distance; stages now know where they start (`fromDistanceM`).
+- While moving preparation into one helper, a controller unit test caught a second animation
+  loop starting when two Play presses shared one preparation; fixed before committing.
+- Screenshot `docs/screenshots/m4-flythrough-synthetic.png` re-captured with the new controls.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 130
+passed; `npm run e2e` 12 passed. Mutation checks, each made a test fail: no highlight on jump;
+camera not placed at the day's start.
+
+**Team next**
+
+- Sparsh: do exercise 17; try the controls with the keyboard only.
+- Team: in the M7 questionnaire (#31), check that the two sets of day buttons are clear.
+
 ## 2026-11-22 · M4 #19 Flythrough camera (owner: Sparsh)
 
 **Done**
