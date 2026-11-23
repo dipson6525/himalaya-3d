@@ -12,12 +12,14 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **Component tree** | The nesting of React components: which component renders which. Drawn in `docs/ui-design.md`. |
 | **CI** | Continuous Integration — GitHub Actions runs lint, type checks and tests on every push/PR. |
 | **Bounding box** | The latitude/longitude rectangle a value must fall in. Our route validator uses a loose box around Nepal to catch swapped coordinates. |
+| **Dead band** | A change is only counted once it is at least a set size (here 5 m) from the last turning point, so small wobbles are ignored. Used for the profile's total ascent and descent. |
 | **Devanagari** | The script Nepali is written in (Unicode block U+0900–U+097F). |
 | **Douglas–Peucker** | Line simplification: find the point farthest from the line joining the first and last points; if it is within the tolerance drop everything between them, otherwise keep it and repeat on both halves. |
 | **EPSG code** | A number that names a coordinate system: 4326 = longitude/latitude (WGS84); 32645 = UTM zone 45 north. |
 | **ECEF** | Earth-Centred, Earth-Fixed coordinates: x, y, z in metres from the Earth's centre. Cesium's `Cartesian3`. |
 | **Exponential smoothing** | Each frame, move a fraction α = 1 − e^(−dt/τ) of the way to the target; after τ seconds about 63% of the way. Used for the flythrough heading. |
 | **FeatureCollection** | A GeoJSON object holding a list of Features; each route file is one. A Feature = geometry + properties. |
+| **Ellipsoid height** | Height above the smooth WGS84 ellipsoid (Cesium's terrain heights). Not the same as height above sea level, which the cited stop altitudes use. |
 | **envDir** | The Vite setting for which folder `.env*` files are read from (ours: project root). |
 | **GeoJSON** | JSON format for map features; coordinates are `[longitude, latitude]`. |
 | **Haversine formula** | Great-circle distance between two lat/lon points on a sphere (M4). |

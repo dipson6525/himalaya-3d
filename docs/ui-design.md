@@ -68,7 +68,7 @@ flowchart LR
   Globe --> Credits["Credits #15 #25 #26<br/>in Cesium's credit area"]:::dipson
   GlobeArea --> Fps["FpsOverlay #29 (toggle)"]:::sparsh
 
-  App --> Profile["ProfileStrip #21<br/>ElevationProfile (Chart.js)<br/>+ ascent / descent / highest"]:::dipson
+  App --> Profile["ElevationProfile strip (exists) #21<br/>Chart.js + ascent / descent / highest"]:::dipson
 
   App --> Panel["SidePanel (exists) #16<br/>tabs: Trek · Plan · Layers"]:::dipson
   Panel --> TrekTab["TrekPanel (exists) #16"]:::dipson
@@ -314,7 +314,7 @@ Still to add:
 - the `AppState` context (see above);
 - the flythrough's speed and jump-to-day controls (#20). The controller itself exists since #19;
   `FlythroughLayer` hands it to `App` with a callback instead of `ViewerContext` (ADR-028);
-- the profile strip row in the grid (#21);
+- the chart ↔ map link (#22); the profile strip itself exists since #21 (a column under the globe);
 - the USGS and Open-Meteo credits (#25, #26); the OSM credit is on since #14.
 
 ### Gaps in the current code this design fixes later

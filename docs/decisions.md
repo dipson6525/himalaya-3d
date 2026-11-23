@@ -490,3 +490,33 @@ the M7 questionnaire (#31) whether users find that clear. Out-and-back treks get
 jump for their return days, and the flythrough never flies them backwards. Heading smoothing is
 time-based, so at 4× the camera turns later along the trail than at 1× (a possible later
 improvement).
+
+## ADR-030 · Elevation profile: terrain sampled in the browser, totals with a dead band (Dipson, 2026-11-23)
+
+**Context:** Issue #21 (FR4): an elevation profile of the selected trek, sampled about every
+50 m, overnight stops marked, with total ascent, total descent and the highest point; sampling
+cached per route. The route files carry no heights along the trail (ADR-017).
+**Decision:**
+- The trail is resampled at equal intervals of at most 50 m (`lib/geo/resample.ts`, shared with
+  the flythrough) and Cesium's `sampleTerrainMostDetailed` gives the terrain height at each
+  sample, in the browser, when a trek is shown. Results are cached per route id for as long as
+  the page is open; a failed sampling is not cached.
+- These are terrain heights from Cesium World Terrain, above the WGS84 ellipsoid. They are not
+  the cited stop altitudes (above sea level, from other sources), so the strip says so under the
+  chart, stop markers are drawn ON the terrain line, and the cited altitude is in the tooltip.
+- A terrain tile that fails to load fails the whole sampling (`rejectOnTileFail`), instead of
+  leaving a gap that would look like a 0 m cliff. Without a token there is no terrain: heights
+  are 0 m and the strip says so.
+- Totals use a 5 m dead band: a change counts only once the height is at least 5 m from the last
+  turning point. Summing every sample-to-sample wobble would inflate the totals; a steady climb
+  still counts in full. 5 m is a design choice, not a measurement.
+- Chart.js (v4) draws the chart on a canvas, created and destroyed in a React effect, with only
+  the needed parts registered. The canvas has `role="img"` and a one-line summary; the totals are
+  also plain text. The strip sits under the globe (ui-design) and can be hidden; it starts hidden
+  at 900 px or narrower.
+**Alternatives:** heights computed in the Python pipeline and stored in the route files (would
+need a terrain source and a schema change; the browser already has Cesium's terrain); a chart
+library with a React wrapper (one more dependency to explain); no dead band (inflated totals).
+**Limits:** TODO(team): compare the totals with published figures for each real trek after
+#9–#12 and adjust the dead band if needed; measure how long sampling takes for a long trek
+(#30). The #13 altitude cross-check compares cited altitudes with terrain heights.

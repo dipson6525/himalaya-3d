@@ -30,6 +30,7 @@ in M7 you lead performance measurement and testing.
 | `app/src/lib/geo/distance.ts` | Haversine, cumulative distance, distance → (segment, t) lookup | FR3, FR4 |
 | `app/src/lib/geo/distance.test.ts` | Hand-checkable tests (1° = 111,194.9 m, πR/2, πR, uneven spacing) | FR3, FR4 |
 | `app/src/lib/geo/stages.ts` (+ test) | Put stops on the trail, cut the trail into daily stages | FR2 |
+| `app/src/lib/geo/resample.ts` (+ test), `app/src/engine/terrain.ts` | Equal-interval samples along a trail; wait for World Terrain (moved here in #21, shared by flythrough and profile) | FR3, FR4 |
 | `app/src/features/routes/StageLayer.tsx` | Highlights the chosen day's stage; flies the camera to it | FR2 |
 | `app/e2e/stages.spec.ts`, `app/e2e/serveFixtures.ts` | e2e: day buttons, highlight, clearing; shared fixture server | FR2 |
 | `app/src/engine/flythrough/path.ts` (+ test) | Flythrough maths: resampling, safe heights, spline, distance table, camera pose, smoothing | FR3 |

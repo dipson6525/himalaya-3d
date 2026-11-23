@@ -22,8 +22,9 @@ test('elevation profile: chart, totals, data source and Hide / Show (#21)', asyn
 
   const strip = page.getByTestId('elevation-profile');
   await expect(strip).toHaveAttribute('data-status', 'ready', { timeout: 60_000 });
-  // Test Route is 22.6 km long; samples at most 50 m apart → at least 453 of them.
-  expect(Number(await strip.getAttribute('data-samples'))).toBeGreaterThanOrEqual(453);
+  // Test Route is 22,641.3 m long; samples at most 50 m apart: ceil(22,641.3 / 50) = 453
+  // equal intervals, so 454 samples (the same with or without terrain).
+  await expect(strip).toHaveAttribute('data-samples', '454');
 
   await expect(strip.getByRole('heading', { name: 'Elevation profile' })).toBeVisible();
   // The chart is a canvas, so it carries a text summary for screen readers.

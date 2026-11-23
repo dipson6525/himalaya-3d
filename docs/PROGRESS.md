@@ -5,6 +5,33 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-23 · M4 #21 Elevation profile (owner: Dipson)
+
+**Done**
+
+- PR #54 (#20 flythrough controls) merged after green CI and code-review fixes (ADR-021).
+- Elevation profile strip under the globe: Chart.js line chart of terrain height along the trek
+  (samples at most 50 m apart), the overnight stops marked, and total ascent, total descent and
+  highest point as text. Hide / Show; starts hidden on narrow screens (ADR-030).
+- Terrain heights come from Cesium World Terrain in the browser, cached per route; the strip
+  says they are not the cited stop altitudes. Without a token it says there is no terrain.
+- Totals use a 5 m dead band (worked example in `profile.ts` and Dipson's notes).
+- Shared helpers: `resampleTrail` moved to `lib/geo/resample.ts`, `terrainReady` to
+  `engine/terrain.ts` (the flythrough uses both too).
+- New dependency: chart.js ^4.6.1.
+- Screenshot `docs/screenshots/m4-elevation-profile-synthetic.png` (synthetic route over real
+  terrain; its numbers are not trek facts).
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 153
+passed; `npm run e2e` 14 passed (with the token); the profile, flythrough and smoke specs also
+passed on a build without a token.
+
+**Team next**
+
+- Dipson: do exercises 11–13; check the strip with the keyboard and a screen reader.
+- Team: once real routes exist (#9–#12), compare each trek's totals with published figures
+  (TODO(team): verify) and note how long sampling takes (#30).
+
 ## 2026-11-23 · M4 #20 Flythrough controls (owner: Sparsh)
 
 **Done**
