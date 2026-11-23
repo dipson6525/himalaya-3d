@@ -5,6 +5,43 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-22 · M4 #19 Flythrough camera (owner: Sparsh)
+
+**Done**
+
+- PR #52 (#49 daily stages) merged after green CI and code-review fixes (ADR-021).
+- `engine/flythrough/path.ts`: equal-interval resampling, safe flight heights from sampled
+  terrain, Cesium Catmull-Rom spline in ECEF, a distance lookup table for the curve (constant
+  ground speed, also around corners), camera pose behind/above/looking ahead, exponential
+  heading smoothing (ADR-028). 15 hand-checkable unit tests.
+- `FlythroughController` (plain class, one animation-frame loop, terrain sampled once, runtime
+  terrain guard, mouse off while playing) and `FlythroughLayer` (one controller per route).
+- Play / Pause button in the Trek tab (speed and jump-to-day are #20). Pressing a day pauses
+  the flythrough; another trek stops it.
+- Found while testing: Play pressed before World Terrain finished loading failed (Cesium leaves
+  the provider undefined until then) → `play()` waits for it; a disabled button lost keyboard
+  focus while preparing → `aria-disabled` instead.
+- Screenshot `docs/screenshots/m4-flythrough-synthetic.png` (synthetic route, real terrain).
+
+- Code review found: the home button (and following an entity) was silently undone by a
+  running flythrough → both now pause it. Also fixed: failed terrain tiles counted as 0 m (now the
+  highest height found), pitch not re-aimed after the safety lift (now re-aimed and smoothed), a
+  second preparation when Play was pressed again, a "Resume" label for a flythrough that never
+  started, the camera standing still for the first 600 m. New: 8 controller unit tests with a
+  stub Viewer and hand-driven animation frames.
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 125
+passed; `npm run e2e` 11 passed. Mutation checks, each made a test fail: removing the curve's
+distance table (unit test: steps 37.5–62.5 m instead of 50 m); removing "pause on day"; and 7
+controller mutations (no prepare reuse, no home-button pause, status after destroy, failed tiles
+as 0 m, no re-aim after the lift, "paused" while preparing, camera starting at 0).
+
+**Team next**
+
+- Sparsh: play the flythrough on each real route once #9–#12 land; note whether speed, height
+  and smoothness feel right (TODO(team): verify), and measure FPS during the flythrough for the
+  NFR1 table (#29). Do exercises 14–16.
+
 ## 2026-11-22 · M3 #49 Daily stages (owner: Sparsh)
 
 **Done**

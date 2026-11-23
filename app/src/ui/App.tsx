@@ -4,14 +4,21 @@
  *
  * The medical disclaimer lives in the footer of the layout so it is visible on every
  * screen, as required by our safety rule. The side panel has three tabs (SidePanel.tsx):
- * Trek (choose a trek, see its stops), Plan and Layers (filled in by later issues).
+ * Trek (choose a trek, see its stops, play the flythrough), Plan and Layers (later issues).
  *
- * Layers that draw on the globe (RouteLayer, StageLayer) are children of CesiumGlobe, so they can
- * reach the Cesium Viewer through ViewerContext (docs/ui-design.md). State shared by the globe and
- * the panel (the selected route, the selected daily stage) lives here and is passed down as props.
+ * Layers that draw on the globe (RouteLayer, StageLayer, FlythroughLayer) are children of
+ * CesiumGlobe, so they can reach the Cesium Viewer through ViewerContext (docs/ui-design.md).
+ * State shared by the globe and the panel (the selected route, the selected daily stage, the
+ * flythrough controller and its status) lives here and is passed down as props.
  */
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { CesiumGlobe } from '../engine/CesiumGlobe';
+import {
+  type FlythroughController,
+  type FlythroughStatus,
+} from '../engine/flythrough/FlythroughController';
+import { FlythroughLayer } from '../engine/flythrough/FlythroughLayer';
+import { FlythroughControls } from '../features/routes/FlythroughControls';
 import { routeStages } from '../features/routes/routeEntities';
 import { RouteLayer } from '../features/routes/RouteLayer';
 import { StageLayer } from '../features/routes/StageLayer';
@@ -44,13 +51,34 @@ export function App() {
   const selectedStageStopId =
     stageChoice && stageChoice.routeId === routes.selectedId ? stageChoice.toStopId : null;
   const selectedStage = stages.find((stage) => stage.toStopId === selectedStageStopId) ?? null;
+  // Which stage StageLayer has really drawn (read by the e2e test, like drawnStops).
+  const [drawnStage, setDrawnStage] = useState<string | null>(null);
+
+  // Flythrough (#19). The controller is a plain object that moves the camera itself; React only
+  // keeps a reference to it and its status (which changes a few times, not every frame).
+  const [flythrough, setFlythrough] = useState<FlythroughController | null>(null);
+  const [flyStatus, setFlyStatus] = useState<{ status: FlythroughStatus; distanceM: number }>({
+    status: 'idle',
+    distanceM: 0,
+  });
+  // useCallback keeps these the same functions between renders, so FlythroughLayer's effect
+  // (which lists them as dependencies) does not rebuild the controller on every render.
+  const onFlyStatus = useCallback(
+    (status: FlythroughStatus, distanceM: number) => setFlyStatus({ status, distanceM }),
+    [],
+  );
+  const onFlyController = useCallback(
+    (controller: FlythroughController | null) => setFlythrough(controller),
+    [],
+  );
 
   /** Called by TrekPanel: highlight the stage ending at `toStopId` (null = none). */
   function selectStage(toStopId: string | null) {
+    // The stage highlight flies the camera to the stage, so a running flythrough pauses first;
+    // otherwise both would move the camera at once.
+    if (toStopId) flythrough?.pause();
     setStageChoice(toStopId && routes.selectedId ? { routeId: routes.selectedId, toStopId } : null);
   }
-  // Which stage StageLayer has really drawn (read by the e2e test, like drawnStops).
-  const [drawnStage, setDrawnStage] = useState<string | null>(null);
 
   const tabs: PanelTab[] = [
     {
@@ -65,7 +93,14 @@ export function App() {
           selectedStageStopId={selectedStageStopId}
           onSelectStage={selectStage}
           drawnStage={drawnStage}
-        />
+        >
+          <FlythroughControls
+            controller={flythrough}
+            status={flyStatus.status}
+            distanceM={flyStatus.distanceM}
+            language={LANGUAGE}
+          />
+        </TrekPanel>
       ),
       hasControls: true,
     },
@@ -95,6 +130,11 @@ export function App() {
           <CesiumGlobe>
             <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
             <StageLayer stage={selectedStage} onDrawn={setDrawnStage} />
+            <FlythroughLayer
+              route={routes.current}
+              onController={onFlyController}
+              onStatus={onFlyStatus}
+            />
           </CesiumGlobe>
         </section>
         <SidePanel tabs={tabs} language={LANGUAGE} />

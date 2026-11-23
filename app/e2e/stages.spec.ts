@@ -37,8 +37,11 @@ test('pressing a day highlights its stage; pressing again or changing trek remov
   await expect(day4).toContainText('7.4 km along the trail from the previous stop');
   await expect(day2).toHaveAttribute('aria-pressed', 'false');
 
-  // Keyboard only: from the trek selector, Tab reaches the first day button; Enter presses it.
+  // Keyboard only: from the trek selector, Tab goes to the flythrough button, then to the first
+  // day button; Enter presses it.
   await page.getByLabel('Choose a trek').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByTestId('flythrough-toggle')).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(day2).toBeFocused();
   await page.keyboard.press('Enter');

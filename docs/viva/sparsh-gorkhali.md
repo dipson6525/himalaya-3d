@@ -32,6 +32,10 @@ in M7 you lead performance measurement and testing.
 | `app/src/lib/geo/stages.ts` (+ test) | Put stops on the trail, cut the trail into daily stages | FR2 |
 | `app/src/features/routes/StageLayer.tsx` | Highlights the chosen day's stage; flies the camera to it | FR2 |
 | `app/e2e/stages.spec.ts`, `app/e2e/serveFixtures.ts` | e2e: day buttons, highlight, clearing; shared fixture server | FR2 |
+| `app/src/engine/flythrough/path.ts` (+ test) | Flythrough maths: resampling, safe heights, spline, distance table, camera pose, smoothing | FR3 |
+| `app/src/engine/flythrough/FlythroughController.ts` | Plays / pauses the flythrough; moves the camera every frame | FR3 |
+| `app/src/engine/flythrough/FlythroughLayer.tsx`, `features/routes/FlythroughControls.tsx` | One controller per route; the Play / Pause button | FR3 |
+| `app/e2e/flythrough.spec.ts` | e2e: play, pause, resume, pause on day, stop on another trek | FR3 |
 | `app/playwright.config.ts` | Runs e2e tests against the production build under `/himalaya-3d/` | all |
 | `app/e2e/smoke.spec.ts` | Smoke test: app loads, canvas renders, credits + disclaimer, no 404s | FR1, NFR5–6 |
 | `.github/workflows/deploy.yml` | Builds with the token secret and publishes to Pages | NFR7 |
@@ -286,6 +290,72 @@ sin 45° ≈ altitude + 2,828 m. On the same test stage it ended about 3 km abov
 zig-zags removed by Douglas–Peucker). If the trail passes the same place twice, a stop can land
 on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these stages.
 
+### The flythrough camera (`engine/flythrough/`, issue #19)
+
+**Pipeline** (each step is one function in `path.ts`, with tests):
+
+```
+trail (uneven points)
+  → resampleTrail: equal intervals of ≤ 100 m          e.g. 2,223.9 m → 23 × 96.7 m
+  → sampleTerrain (once, level 11): ground height at each sample
+  → safeHeights: highest ground within ±5 samples (±500 m) + 250 m
+  → buildFlightPath: CatmullRomSpline(times = ground distance, points = ECEF x, y, z)
+                     + distance table: spline sampled every 10 m of time, haversine added up
+start:        s = 600 m (so the camera, 600 m behind s, is at the very start of the trail)
+every frame:  s += 250 m/s × dt          (dt = seconds since the last frame, at most 0.1)
+  → cameraPose(s): camera = point(s − 600) raised 300 m; looks at point(s + 800)
+  → guard: at least 150 m above the terrain loaded under the camera
+  → aim from where the camera really is: heading and pitch to the look-ahead point
+  → smooth both: h += α · (shortest turn to target), p += α · (target − p), α = 1 − e^(−dt/1.5 s)
+  → camera.setView(...) and scene.requestRender()
+```
+
+**Why a distance table for the curve (constant ground speed).** The spline's "time" is the
+distance along the *trail*, but the camera flies along the *curve*, which cuts corners and eases
+in at its ends. The unit test measured each 50 m step on the ground: without the table 37.5 to
+62.5 m, with it 49 to 51 m. The table is the same idea as #18's cumulative distances, now for the
+curve: sample it every 10 m, add up the haversine distances, and binary-search "s metres" in it.
+
+**Heading smoothing, worked.** τ = 1.5 s and the target is 90° away. After one frame of 1/60 s,
+α = 1 − e^(−0.0111) = 0.0110, so the camera turns 1.0°. After 1.5 s it has turned
+1 − e^(−1) = 63.2% = 56.9° (the unit test checks this). The shorter way round: from 350° to 10° is
++20° (`wrapToPi`), so the camera turns through north, not all the way back through south.
+
+**Heading and pitch from two points.** `Transforms.eastNorthUpToFixedFrame(camera)` is the
+matrix from local east/north/up to ECEF; its inverse turns the target into (east, north, up)
+metres. heading = atan2(east, north), pitch = atan2(up, √(east² + north²)). The camera is 300 m
+higher than a point 1,400 m ahead: pitch = −atan(300 / 1400) ≈ −12°.
+
+**Outside React.** The camera changes 60 times a second. `FlythroughController` is a plain
+class with one `requestAnimationFrame` loop; React only keeps the controller and its status
+(idle / preparing / playing / paused / finished / error), which changes a few times per flight.
+The Play button calls `play()` / `pause()` ("commands are method calls"). `FlythroughLayer`
+creates one controller per route and destroys it when the route changes.
+
+**Who else moves the camera (found in code review).** The home button, following an entity
+(double-click on a marker) and the day buttons all move the camera. A running flythrough would
+undo them in the next frame (`setView` does not cancel their flights), so each of them pauses it.
+The controller listens to `homeButton.viewModel.command.beforeExecute` and
+`trackedEntityChanged`, and removes those listeners in `destroy()`.
+
+**Missing terrain.** If a terrain tile fails, its heights come back undefined. Counting them as
+0 m would fly into the mountains, so they count as the highest height found on the route.
+
+**Testing the controller without a browser.** `FlythroughController.test.ts` gives it a stub
+Viewer (a plain object with only what it uses), replaces `sampleTerrain`, and replaces
+`requestAnimationFrame` with a list the test runs one frame at a time. A mutation run undid seven
+fixes one by one; each made a test fail.
+
+**Found while testing.** (1) Pressing Play while World Terrain was still loading failed: Cesium
+leaves `terrainProvider` undefined until it is ready, so `play()` waits for
+`globe.terrainProviderChanged` (up to 20 s). (2) The button was `disabled` while preparing, and a
+disabled button loses keyboard focus, so a keyboard user's next Enter did nothing; it now uses
+`aria-disabled` and ignores presses.
+
+**Limits.** Terrain level 11 is coarse (about 140 m between samples): the ±500 m maximum, the
+250 m clearance and the runtime guard cover that. Speed and heights still need checking on real
+treks, and the FPS on the team's laptops (#29). TODO(team): verify after #9–#12.
+
 ## Key concepts from first principles
 
 - **Static site**: just files; the server does no computation. → Free hosting, but no secrets.
@@ -379,6 +449,24 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
 34. **A route file is broken. Why does the page not go blank?** — `useRoutes` runs both
     `routeDrawing` and `routeStages` on the file inside `try` before using it; if either throws,
     the status says "could not load" and the disclaimer stays.
+35. **How does the flythrough keep a constant ground speed?** — s grows by speed × dt each
+    frame, and a distance table for the curve (spline sampled every 10 m, haversine summed) turns
+    s into spline time by binary search. Without it, steps were 37.5–62.5 m instead of 50 m.
+36. **Why Catmull-Rom and not another spline?** — It passes through every control point, so the
+    camera really goes over each sample; and Cesium has it built in.
+37. **What does τ = 1.5 s mean?** — After 1.5 s the heading has turned 63% of the way to a new
+    direction; α = 1 − e^(−dt/τ) gives the same motion at any frame rate.
+38. **How is the camera kept out of the mountains?** — Flight height = highest terrain within
+    ±500 m + 250 m, the camera another 300 m above, and a guard each frame lifts it to 150 m
+    above the terrain loaded under it.
+39. **Why is the controller not React state?** — It changes the camera 60 times a second; React
+    state would re-render the page every frame. React only keeps its status.
+40. **Why aria-disabled and not disabled on the Play button?** — A disabled button loses keyboard
+    focus; the user's next Enter (to pause) would do nothing.
+41. **What happens if the user presses the home button during a flythrough?** — The controller
+    hears the button's `beforeExecute` event and pauses, so the home flight is not undone.
+42. **How do you test code that runs every animation frame?** — Replace `requestAnimationFrame`
+    with a list and run the frames by hand with chosen timestamps; use a stub Viewer.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -410,6 +498,12 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
     Then revert.
 13. Draw an out-and-back trek on paper (up on days 2–3, down on days 4–5) and work out each
     stage's start, end and direction before checking with `splitIntoStages`.
+14. With τ = 1.5 s and frames of 1/30 s, work out by hand how far the heading turns towards a
+    target 60° away in the first frame and after 3 s. Check with a new `smoothAngle` test.
+15. In `path.ts`, make `pointAt` use the spline time directly (`spline.evaluate(s)`), run
+    `npx vitest run src/engine/flythrough`, and explain why the constant-speed test fails. Revert.
+16. Change `HEADING_TAU_S` to 0.1 and then to 5, play the flythrough on the synthetic route
+    (`npm run dev` with the e2e fixtures, or a real route later) and describe the difference.
 
 ## AI use in this part
 
@@ -427,8 +521,14 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
   duplicated end point in `sliceLine`, also fixed. A code-reviewer subagent then found the
   sea-level camera aim and a crash path for malformed files; both fixed, the camera fix measured
   with World Terrain on a temporary test stage.
-- **What you must still do:** read the four engine files, run the tests and the app yourself,
-  and do exercises 2, 5–8 and 11–13 by hand.
+- **Issue #19 (2026-11-22):** Claude Code wrote `path.ts` (+ test), `FlythroughController.ts`,
+  `FlythroughLayer.tsx`, `FlythroughControls.tsx`, the e2e test, ADR-028 and this section. The
+  tests found uneven speed (fixed with the curve's distance table), a terrain-loading race and a
+  keyboard-focus bug; all fixed. A code-reviewer subagent then found the home button being undone
+  and smaller lifecycle problems; all fixed, with controller unit tests. Mutation checks confirmed
+  the tests catch them.
+- **What you must still do:** read the engine files, run the tests and the app yourself, and do
+  exercises 2, 5–8 and 11–16 by hand.
 
 ## Changelog
 
@@ -443,3 +543,6 @@ on the wrong pass. The "jump to day N" of the flythrough (#20) will reuse these 
   safety), Q23–26, exercises 9–10.
 - 2026-11-22 — M3 #49: daily stages walkthrough (projection worked example, stages, slicing,
   drawing order), Q27–32, exercises 11–13, AI use. After code review: camera height, Q33–34.
+- 2026-11-22 — M4 #19: flythrough walkthrough (pipeline, distance table, smoothing worked
+  example, heading/pitch, outside React, testing finds), Q35–40, exercises 14–16, AI use.
+  After code review: other camera movers pause it, missing terrain, controller tests, Q41–42.
