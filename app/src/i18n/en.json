@@ -32,5 +32,18 @@
   "fly.speedOption": "{speed}×",
   "fly.jumpLabel": "Jump to the start of a day",
   "fly.day": "Day {day}",
-  "fly.jumpTo": "Jump to the start of day {day}"
+  "fly.jumpTo": "Jump to the start of day {day}",
+  "profile.heading": "Elevation profile",
+  "profile.show": "Show profile",
+  "profile.hide": "Hide profile",
+  "profile.loading": "Sampling the terrain along the trail…",
+  "profile.error": "Could not load the terrain heights for this trek. Choose it again to retry.",
+  "profile.noTerrain": "No Cesium ion token: there is no terrain, so every height is 0 m.",
+  "profile.stats": "Total ascent {ascent} m · Total descent {descent} m · Highest point {highest} m at {at} km",
+  "profile.chartLabel": "Elevation profile of {name}: {length} km long, highest point {highest} m.",
+  "profile.source": "Terrain heights from Cesium World Terrain, above the WGS84 ellipsoid, every 50 m. They are not the cited stop altitudes and can differ from them.",
+  "profile.axisDistance": "Distance along the trail (km)",
+  "profile.axisHeight": "Height (m)",
+  "profile.stopTooltip": "Day {day} · {name} · cited altitude {altitude} m",
+  "profile.heightTooltip": "Terrain {height} m"
 }

@@ -32,5 +32,18 @@
   "fly.speedOption": "{speed}×",
   "fly.jumpLabel": "कुनै दिनको सुरुमा जानुहोस्",
   "fly.day": "दिन {day}",
-  "fly.jumpTo": "दिन {day} को सुरुमा जानुहोस्"
+  "fly.jumpTo": "दिन {day} को सुरुमा जानुहोस्",
+  "profile.heading": "उचाइ प्रोफाइल",
+  "profile.show": "प्रोफाइल देखाउनुहोस्",
+  "profile.hide": "प्रोफाइल लुकाउनुहोस्",
+  "profile.loading": "बाटोभरिको भू-सतहको उचाइ लिइँदैछ…",
+  "profile.error": "यस पदयात्राको भू-सतहको उचाइ लोड गर्न सकिएन। फेरि प्रयास गर्न यसलाई फेरि छान्नुहोस्।",
+  "profile.noTerrain": "Cesium ion टोकन छैन: भू-सतह नभएकाले सबै उचाइ ० मि. देखिन्छ।",
+  "profile.stats": "जम्मा चढाइ {ascent} मि. · जम्मा ओरालो {descent} मि. · सबैभन्दा अग्लो बिन्दु {highest} मि. ({at} कि.मि. मा)",
+  "profile.chartLabel": "{name} को उचाइ प्रोफाइल: {length} कि.मि. लामो, सबैभन्दा अग्लो बिन्दु {highest} मि.।",
+  "profile.source": "भू-सतहको उचाइ Cesium World Terrain बाट, WGS84 एलिप्सोइडमाथि, हरेक ५० मि. मा। यी उद्धृत बिसौनी उचाइ होइनन्, र तिनीभन्दा फरक हुन सक्छन्।",
+  "profile.axisDistance": "बाटोमा दूरी (कि.मि.)",
+  "profile.axisHeight": "उचाइ (मि.)",
+  "profile.stopTooltip": "दिन {day} · {name} · उद्धृत उचाइ {altitude} मि.",
+  "profile.heightTooltip": "भू-सतह {height} मि."
 }
