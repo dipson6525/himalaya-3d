@@ -224,6 +224,60 @@ describe('FlythroughController', () => {
     expect(statuses()).toEqual(['preparing', 'error']);
   });
 
+  it('setSpeed: 2× moves twice as far per frame; a speed of 0 is refused', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports } = setUp();
+    await controller.play();
+    controller.setSpeed(2);
+    runFrame(1000);
+    runFrame(1100); // 0.1 s at 2 × 250 m/s = 50 m
+    controller.pause();
+    expect(reports.at(-1)).toEqual({ status: 'paused', distanceM: 650 });
+    expect(() => controller.setSpeed(0)).toThrow(RangeError);
+  });
+
+  it('jumpTo while paused puts the camera there and waits; Resume continues from there', async () => {
+    terrainReturns(() => 1000);
+    const { viewer, controller, reports } = setUp();
+    await controller.play();
+    controller.pause();
+
+    await controller.jumpTo(2000); // 2 km along the trail
+    // The camera is at 2,000 m, so the "current point" is 600 m further: 2,600 m. (Close to, not
+    // exactly: the distance went through the curve's distance table, with rounding at 1e-9 m.)
+    expect(reports.at(-1)?.status).toBe('paused');
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(2600, 3);
+    const lastView = vi.mocked(viewer.camera.setView).mock.calls.length - 1;
+    const where = Cartographic.fromCartesian(viewAt(viewer, lastView).destination);
+    // 2,000 m north of 28 °N = 28 + 2000 / 111,195 = 28.017986°
+    expect((where.latitude * 180) / Math.PI).toBeCloseTo(28.017986, 4);
+
+    await controller.play();
+    expect(reports.at(-1)?.status).toBe('playing');
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(2600, 3);
+  });
+
+  it('jumpTo before the first play prepares the flight line, then waits there', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports, statuses } = setUp();
+    await controller.jumpTo(1000);
+    expect(statuses()).toEqual(['preparing', 'paused']);
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(1600, 3);
+  });
+
+  it('jumpTo while playing keeps playing from the new place', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports, statuses } = setUp();
+    await controller.play();
+    runFrame(1000);
+    await controller.jumpTo(3000);
+    expect(statuses().at(-1)).toBe('playing'); // no pause in between
+    runFrame(1100); // + 25 m
+    controller.pause();
+    expect(reports.at(-1)?.status).toBe('paused');
+    expect(reports.at(-1)?.distanceM).toBeCloseTo(3625, 3);
+  });
+
   it('the safety guard lifts the camera above loaded terrain and aims down from there', async () => {
     terrainReturns(() => 1000); // planned camera height: 1,000 + 250 + 300 = 1,550 m
     const { viewer, controller } = setUp(stubViewer(5000)); // but the loaded ground is 5,000 m

@@ -150,6 +150,18 @@ export function pointAt(path: FlightPath, s: number): Cartesian3 {
   return path.spline.evaluate(time, new Cartesian3());
 }
 
+/**
+ * The curve distance (the `s` of pointAt) of the place `trailDistanceM` metres along the TRAIL.
+ * The spline's "time" is the trail distance, so this is the distance table read the other way
+ * round: find the time in tableTimes, read the curve distance next to it. Used to jump to the
+ * start of a day, whose position the stage maths gives as a trail distance (#20).
+ */
+export function curveDistanceForTrail(path: FlightPath, trailDistanceM: number): number {
+  const { segment, t } = locateDistance(path.tableTimes, trailDistanceM); // clamps to the ends
+  const from = path.tableDistancesM[segment];
+  return from + t * (path.tableDistancesM[segment + 1] - from);
+}
+
 /** [lon, lat] in degrees of a Cesium position (its height is dropped). */
 function toLonLat(position: Cartesian3): LonLat {
   const c = Cartographic.fromCartesian(position);

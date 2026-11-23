@@ -128,6 +128,8 @@ export interface Stage {
   day: number;
   /** Map distance along the trail between the two stops, in metres (never negative). */
   lengthM: number;
+  /** Where the stage starts: metres along the trail to the previous stop (for "jump to day"). */
+  fromDistanceM: number;
   /** The trail between the two stops, starting at the previous stop. */
   path: LonLat[];
   /**
@@ -157,6 +159,7 @@ export function splitIntoStages(line: readonly LonLat[], stops: readonly StageSt
       toStopId: inDayOrder[k].id,
       day: inDayOrder[k].day,
       lengthM: Math.abs(toM - fromM),
+      fromDistanceM: fromM,
       path: sliceLine(line, fromM, toM, cumulative),
       topAltitudeM: Math.max(inDayOrder[k - 1].altitudeM, inDayOrder[k].altitudeM),
     });

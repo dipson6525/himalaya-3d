@@ -11,7 +11,7 @@
  * State shared by the globe and the panel (the selected route, the selected daily stage, the
  * flythrough controller and its status) lives here and is passed down as props.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CesiumGlobe } from '../engine/CesiumGlobe';
 import {
   type FlythroughController,
@@ -24,6 +24,7 @@ import { RouteLayer } from '../features/routes/RouteLayer';
 import { StageLayer } from '../features/routes/StageLayer';
 import { TrekPanel } from '../features/routes/TrekPanel';
 import { useRoutes } from '../features/routes/useRoutes';
+import type { Stage } from '../lib/geo/stages';
 import { t, type Language } from '../i18n';
 import { SidePanel, type PanelTab } from './SidePanel';
 
@@ -44,10 +45,14 @@ export function App() {
   // The highlighted stage is remembered as "which trek, which end stop". Different treks can
   // share stop ids (two treks may both stop at the same village), so the trek id is checked too:
   // a choice made on one trek can never highlight a stage on another. (TrekPanel also clears the
-  // choice when the user picks another trek, so it does not come back on return.)
-  const [stageChoice, setStageChoice] = useState<{ routeId: string; toStopId: string } | null>(
-    null,
-  );
+  // choice when the user picks another trek, so it does not come back on return.) `flyTo` says
+  // whether StageLayer should fly the camera there: yes from the stop list, no from the
+  // flythrough's "jump to day", where the flythrough itself moves the camera.
+  const [stageChoice, setStageChoice] = useState<{
+    routeId: string;
+    toStopId: string;
+    flyTo: boolean;
+  } | null>(null);
   const selectedStageStopId =
     stageChoice && stageChoice.routeId === routes.selectedId ? stageChoice.toStopId : null;
   const selectedStage = stages.find((stage) => stage.toStopId === selectedStageStopId) ?? null;
@@ -71,13 +76,29 @@ export function App() {
     (controller: FlythroughController | null) => setFlythrough(controller),
     [],
   );
+  // The chosen speed is a value the user sets, so it lives here; whenever it or the controller
+  // changes (a new trek gets a new controller), the controller is told.
+  const [flySpeed, setFlySpeed] = useState(1);
+  useEffect(() => {
+    flythrough?.setSpeed(flySpeed);
+  }, [flythrough, flySpeed]);
+
+  /** Flythrough "jump to day": move the flythrough there and highlight that day's stage. */
+  function jumpToDay(stage: Stage) {
+    void flythrough?.jumpTo(stage.fromDistanceM);
+    if (routes.selectedId) {
+      setStageChoice({ routeId: routes.selectedId, toStopId: stage.toStopId, flyTo: false });
+    }
+  }
 
   /** Called by TrekPanel: highlight the stage ending at `toStopId` (null = none). */
   function selectStage(toStopId: string | null) {
     // The stage highlight flies the camera to the stage, so a running flythrough pauses first;
     // otherwise both would move the camera at once.
     if (toStopId) flythrough?.pause();
-    setStageChoice(toStopId && routes.selectedId ? { routeId: routes.selectedId, toStopId } : null);
+    setStageChoice(
+      toStopId && routes.selectedId ? { routeId: routes.selectedId, toStopId, flyTo: true } : null,
+    );
   }
 
   const tabs: PanelTab[] = [
@@ -99,6 +120,10 @@ export function App() {
             status={flyStatus.status}
             distanceM={flyStatus.distanceM}
             language={LANGUAGE}
+            speed={flySpeed}
+            onSpeedChange={setFlySpeed}
+            stages={stages}
+            onJumpToDay={jumpToDay}
           />
         </TrekPanel>
       ),
@@ -129,7 +154,11 @@ export function App() {
         <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
           <CesiumGlobe>
             <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
-            <StageLayer stage={selectedStage} onDrawn={setDrawnStage} />
+            <StageLayer
+              stage={selectedStage}
+              flyTo={stageChoice?.flyTo ?? true}
+              onDrawn={setDrawnStage}
+            />
             <FlythroughLayer
               route={routes.current}
               onController={onFlyController}

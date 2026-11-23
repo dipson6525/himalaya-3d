@@ -27,5 +27,9 @@
   "fly.resume": "Resume flythrough",
   "fly.pause": "Pause flythrough",
   "fly.preparing": "Preparing flythrough…",
-  "fly.error": "The flythrough could not start. Press the button to try again."
+  "fly.error": "The flythrough could not start. Press the button to try again.",
+  "fly.speed": "Speed",
+  "fly.speedOption": "{speed}×",
+  "fly.jumpLabel": "Jump to the start of:",
+  "fly.day": "Day {day}"
 }

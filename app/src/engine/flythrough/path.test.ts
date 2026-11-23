@@ -12,6 +12,7 @@ import {
   AHEAD_M,
   buildFlightPath,
   cameraPose,
+  curveDistanceForTrail,
   headingPitchTo,
   pointAt,
   resampleTrail,
@@ -147,6 +148,15 @@ describe('buildFlightPath + pointAt', () => {
 
   it('the curve is shorter than the trail, because it cuts the corner', () => {
     expect(path.lengthM).toBeLessThan(samples.distancesM.at(-1) ?? 0);
+  });
+
+  it('curveDistanceForTrail: same as the trail on the straight part, the curve end at the end', () => {
+    expect(curveDistanceForTrail(path, 500)).toBeCloseTo(500, 0); // before the corner
+    expect(curveDistanceForTrail(path, samples.distancesM.at(-1) ?? 0)).toBeCloseTo(
+      path.lengthM,
+      6,
+    );
+    expect(curveDistanceForTrail(path, -50)).toBe(0); // clamped
   });
 
   it('equal steps in distance give equal steps on the ground (constant ground speed)', () => {

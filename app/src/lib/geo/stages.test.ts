@@ -135,6 +135,9 @@ describe('splitIntoStages', () => {
     ]);
     expect(stages[0].lengthM).toBeCloseTo(STEP_M, 1);
     expect(stages[1].lengthM).toBeCloseTo(STEP_M, 1);
+    // Where each stage starts along the trail (used by the flythrough's "jump to day"):
+    expect(stages[0].fromDistanceM).toBeCloseTo(0, 6); // at a
+    expect(stages[1].fromDistanceM).toBeCloseTo(STEP_M, 1); // at b
     expect(stages[0].path).toEqual([
       [0, 0],
       [0.01, 0],

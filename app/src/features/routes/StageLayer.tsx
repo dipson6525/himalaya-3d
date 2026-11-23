@@ -39,12 +39,17 @@ const STAGE_COLOR = Color.fromCssColorString('#ffd166'); // same yellow as the s
 
 interface StageLayerProps {
   stage: Stage | null;
+  /**
+   * Fly the camera to the stage (true when a day is pressed in the stop list). False when the
+   * flythrough's "jump to day" chose it: the flythrough moves the camera itself then (#20).
+   */
+  flyTo: boolean;
   /** Called with the stage's end-stop id once it is on the globe, and with null when removed. */
   onDrawn?: (toStopId: string | null) => void;
 }
 
-/** Draws `stage` (or nothing) and flies the camera to it. Renders no HTML of its own. */
-export function StageLayer({ stage, onDrawn }: StageLayerProps) {
+/** Draws `stage` (or nothing) and, if `flyTo`, flies the camera to it. Renders no HTML. */
+export function StageLayer({ stage, flyTo, onDrawn }: StageLayerProps) {
   const viewer = useViewer();
 
   useEffect(() => {
@@ -83,25 +88,27 @@ export function StageLayer({ stage, onDrawn }: StageLayerProps) {
       stage.path.flatMap(([lon, lat]) => [lon, lat, stage.topAltitudeM]),
     );
     const sphere = BoundingSphere.fromPoints(aimPoints);
-    viewer.camera.flyToBoundingSphere(sphere, {
-      duration: 1.5,
-      offset: new HeadingPitchRange(
-        0,
-        CesiumMath.toRadians(-45),
-        Math.max(sphere.radius * 3, 4000),
-      ),
-    });
+    if (flyTo) {
+      viewer.camera.flyToBoundingSphere(sphere, {
+        duration: 1.5,
+        offset: new HeadingPitchRange(
+          0,
+          CesiumMath.toRadians(-45),
+          Math.max(sphere.radius * 3, 4000),
+        ),
+      });
+    }
 
     return () => {
       removed = true;
       if (!viewer.isDestroyed()) {
-        viewer.camera.cancelFlight();
+        if (flyTo) viewer.camera.cancelFlight(); // only our own flight, never the flythrough's
         viewer.dataSources.remove(dataSource); // no-op if the add has not finished yet (see above)
         viewer.scene.requestRender();
       }
       onDrawn?.(null);
     };
-  }, [viewer, stage, onDrawn]);
+  }, [viewer, stage, flyTo, onDrawn]);
 
   return null;
 }
