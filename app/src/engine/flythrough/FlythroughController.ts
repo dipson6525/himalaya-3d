@@ -81,7 +81,7 @@ export class FlythroughController {
   private heading: number | null = null; // smoothed heading; null = start afresh
   private pitch = 0; // smoothed pitch
   private frame = 0; // id from requestAnimationFrame, 0 = no frame waiting
-  private lastFrameTime = 0; // timestamp of the previous frame, 0 = first frame
+  private lastFrameTime = 0; // when the previous frame (or Play) happened, in ms
   private destroyed = false;
   private readonly stopListening: (() => void)[] = []; // removes the Cesium event listeners
 
@@ -110,7 +110,10 @@ export class FlythroughController {
     if (this.status === 'finished') this.restartFromBeginning(path);
     this.viewer.camera.cancelFlight(); // stop a fly-to that may still be running
     this.viewer.scene.screenSpaceCameraController.enableInputs = false;
-    this.lastFrameTime = 0;
+    // Start the clock now, so the very first frame already moves by the time since Play. (If the
+    // first frame only noted the time, a slow machine where one frame takes over a second would
+    // not move at all in that second; CI found this.)
+    this.lastFrameTime = performance.now();
     this.setStatus('playing');
     this.frame = requestAnimationFrame(this.onFrame);
   }
@@ -221,7 +224,9 @@ export class FlythroughController {
   private readonly onFrame = (now: number) => {
     this.frame = 0;
     if (this.destroyed || this.status !== 'playing' || !this.path) return;
-    const dtS = this.lastFrameTime ? Math.min((now - this.lastFrameTime) / 1000, MAX_FRAME_S) : 0;
+    // Seconds since the last frame: never negative, and at most MAX_FRAME_S (so a stall does not
+    // make the camera jump far ahead).
+    const dtS = Math.min(Math.max((now - this.lastFrameTime) / 1000, 0), MAX_FRAME_S);
     this.lastFrameTime = now;
 
     this.distanceM = Math.min(this.distanceM + this.speedMps * dtS, this.path.lengthM);

@@ -66,6 +66,12 @@ function stubViewer(groundUnderCamera?: number) {
 }
 
 let frames: FrameRequestCallback[] = [];
+/**
+ * performance.now() is pinned to 1,000 ms: Play "happens" at 1,000 ms, so a first frame at
+ * runFrame(1000) moves 0 m and each later frame moves by its own time step. (Without pinning, the
+ * tests would depend on how long the test process had been running.)
+ */
+let clock: ReturnType<typeof vi.spyOn>;
 /** Run the animation frames that are waiting, as if the browser drew at time `now` (ms). */
 function runFrame(now: number) {
   const due = frames;
@@ -100,6 +106,7 @@ function viewAt(viewer: ReturnType<typeof stubViewer>, n: number) {
 
 beforeEach(() => {
   frames = [];
+  clock = vi.spyOn(performance, 'now').mockReturnValue(1000);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     frames.push(callback);
     return frames.length;
@@ -111,6 +118,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clock.mockRestore();
   vi.unstubAllGlobals();
 });
 
@@ -222,6 +230,16 @@ describe('FlythroughController', () => {
     const { controller, statuses } = setUp();
     await controller.play();
     expect(statuses()).toEqual(['preparing', 'error']);
+  });
+
+  it('the first frame after Play already moves by the time since Play (at most 0.1 s)', async () => {
+    terrainReturns(() => 1000);
+    const { controller, reports } = setUp();
+    clock.mockReturnValue(900); // Play is pressed at 900 ms
+    await controller.play();
+    runFrame(1000); // the first frame, 0.1 s later: 0.1 s × 250 m/s = 25 m
+    controller.pause();
+    expect(reports.at(-1)).toEqual({ status: 'paused', distanceM: 625 });
   });
 
   it('setSpeed: 2× moves twice as far per frame; a speed of 0 is refused', async () => {

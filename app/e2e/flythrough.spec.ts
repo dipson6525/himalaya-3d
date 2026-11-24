@@ -55,7 +55,9 @@ test('play, pause and resume the flythrough with the keyboard', async ({ page })
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('data-status', 'playing');
   await expect(toggle).toHaveAttribute('data-distance', String(firstStop));
-  await page.waitForTimeout(1000);
+  // Then it moves on. (2 s like above: on CI, software WebGL with other tests running in
+  // parallel can make one frame take most of a second.)
+  await page.waitForTimeout(2000);
   await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('data-status', 'paused');
   expect(await distanceOf(toggle)).toBeGreaterThan(firstStop);
