@@ -33,6 +33,10 @@ keeps English and Nepali in sync, and the requirements and architecture document
 | `app/src/features/elevation/sampleHeights.ts` (+ test) | Terrain heights every ≤ 50 m, cached per route | FR4 |
 | `app/src/features/elevation/ElevationSampler.tsx`, `ProfileStrip.tsx` | Sampling inside the globe; the Chart.js strip under it | FR4 |
 | `app/e2e/profile.spec.ts` | Browser test: chart, totals, data note, Hide / Show | FR4 |
+| `app/src/features/elevation/profileHover.ts`, `ProfileHoverContext.tsx` | The shared highlighted distance and its provider | FR4 |
+| `app/src/features/elevation/frameThrottle.ts` (+ test) | At most one update per animation frame | FR4 |
+| `app/src/features/elevation/ProfileHoverMarker.tsx` | Marker on the globe; clicks on the trail | FR4 |
+| `app/e2e/profile-link.spec.ts` | Browser tests: chart → map, map → chart | FR4 |
 
 ## Module walkthroughs
 
@@ -218,6 +222,32 @@ the globe. The same pattern as the flythrough's controller. The header's status 
 region that is always on the page, so screen readers announce loading, errors and the totals,
 and it stays visible when the chart is hidden.
 
+### Chart ↔ map link (issue #22)
+
+**What the user gets.** Point at the chart: a dashed line and dot on the chart, and a white
+marker at the same place on the trail on the globe. Click the trail on the globe: the chart marks
+that distance. Move the mouse off the chart: both disappear.
+
+**One shared value, its own provider.** The shared thing is one number: metres along the trail
+(or null). It changes many times a second while the mouse moves. If `App` held it, every change
+would re-render the whole page. So it lives in `ProfileHoverProvider` (a small component with its
+own `useState`); only the components that read it with `useProfileHover()` re-render: the strip
+and the globe marker. The page inside the provider is passed as `children`, elements `App`
+already made, so they are not rebuilt.
+
+**Chart → map, step by step.**
+1. Chart.js calls `onHover`; `chart.scales.x.getValueForPixel(x)` turns the mouse's x into km.
+2. `frameThrottle` keeps only the newest value and sends it once per animation frame.
+3. The marker finds the place: cumulative distances + binary search (`locateDistance`) +
+   `pointOnSegment` (#18), and moves its entity there.
+4. The chart's plugin draws the line and dot from a ref; `chart.draw()` repaints, no rebuild.
+5. Chart.js only calls `onHover` inside the plot area, so leaving is caught with the canvas's
+   `mouseleave` (the e2e test found that the highlight stayed).
+
+**Map → chart.** Cesium's `scene.pick` tells what is under the click (a 9 × 9 px box). If it is the
+trail entity (`trail-<route id>`), the ground under the click gives [lon, lat], and
+`nearestPointOnLine` (#49) gives the distance along the trail.
+
 ## Key concepts from first principles
 
 - **i18n** ("internationalisation", 18 letters between i and n): designing the app so text can be
@@ -362,6 +392,14 @@ and it stays visible when the chart is hidden.
     is no terrain, and "0 m" would present an untrue number as a fact.
 36. **Why "as walked" totals?** — For an out-and-back trek the line is stored once; walking it
     stop to stop counts the way back too.
+37. **Why is the highlighted distance not state in App?** — It changes many times a second; App
+    state would re-render the whole page each time. Its own provider re-renders only its readers.
+38. **What does frameThrottle do?** — Keeps only the newest value and passes it on once per
+    animation frame, so a fast mouse does not cause work nobody sees.
+39. **How do you know which point on the trail was clicked?** — Pick checks it was the trail; the
+    ground under the click gives lon/lat; the nearest point of the trail gives the distance.
+40. **How does a keyboard user get this information?** — The link itself needs a pointer; the
+    totals, the stop list and the stage lengths give the same facts as text.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -389,6 +427,11 @@ and it stays visible when the chart is hidden.
     browser (with the token), and explain the difference. Change it back.
 13. Turn on a screen reader (Narrator on Windows: Ctrl+Win+Enter), go to the profile strip with
     the keyboard and write down what it reads for the heading, the totals, the chart and the button.
+14. Put a `console.log('render')` in `App` and in `ProfileStrip`, move the mouse over the chart,
+    and count the logs. Explain why only one of them grows. Remove the logs afterwards.
+15. Remove the `mouseleave` listener in `ProfileStrip.tsx`, run
+    `npx playwright test e2e/profile-link.spec.ts` (with the token) and explain the failure.
+    Put it back.
 
 ## AI use in this part
 
@@ -414,9 +457,13 @@ and it stays visible when the chart is hidden.
   subagent found untrue numbers (0 m without terrain, totals missing the way back, a dead band
   that dropped the last metres before a peak) and smaller issues; all fixed, with tests that fail
   if the fixes are undone.
+- **Issue #22 (2026-11-24):** Claude Code wrote the hover context and provider, `frameThrottle`,
+  the chart plugin, `ProfileHoverMarker`, their tests, ADR-031 and this section. The e2e test
+  found that leaving the chart did not clear the highlight; fixed. A code-reviewer subagent
+  checked the commit.
 - **What you must still do:** read the design doc and challenge it (does the layout suit how a
   trekker plans?), compare it with the real app as each feature lands, and do exercises 5–7 and
-  11–13 by hand.
+  11–15 by hand.
 
 ## Changelog
 
@@ -425,6 +472,8 @@ and it stays visible when the chart is hidden.
   `useRef` concepts, questions 23–29, exercises 8–10, AI use.
 - 2026-11-23 — M4 #21: elevation profile walkthrough (where heights come from, dead band worked
   example, Chart.js lifecycle, data flow), questions 30–34, exercises 11–13, AI use.
+- 2026-11-24 — M4 #22: chart ↔ map link (own provider, frame throttle, chart → map steps,
+  map → chart), questions 37–40, exercises 14–15, AI use.
 - 2026-11-20 — M1 #7: UI design walkthrough (layout, component tree, shared state, wireframes,
   limits), concepts (context, re-render, derived state, roles, lang, ARIA tabs), questions 8–22,
   exercises 5–7, AI use; corrected after the viva-examiner check.

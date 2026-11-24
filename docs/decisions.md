@@ -532,3 +532,30 @@ library with a React wrapper (one more dependency to explain); no dead band (inf
 (#30). The #13 altitude cross-check compares cited altitudes (above sea level) with terrain
 heights (above the ellipsoid); the difference between the two over Nepal must be taken into
 account there (Q16).
+
+## ADR-031 · Profile ↔ map link: one distance in its own small context (Dipson, 2026-11-24)
+
+**Context:** Issue #22 (FR4): pointing at the elevation chart moves a marker on the map, and
+clicking the trail on the map marks that point on the chart. ADR-018 / ui-design planned a
+`ProfileHoverContext` for this fast-changing value.
+**Decision:**
+- One shared value: the distance along the trail line (metres, or null). It lives in
+  `ProfileHoverProvider`, a component of its own wrapped around the page's main area, so a
+  change re-renders only the components that read it (the strip and the globe marker), not
+  `App`.
+- Chart → map: Chart.js `onHover` turns the mouse's x into a distance; `frameThrottle` passes on
+  only the newest value, at most once per animation frame. Leaving the chart (the canvas's
+  `mouseleave`) clears it, because Chart.js calls `onHover` only inside the plot area (the e2e
+  test found this). The chart marks the distance with a dashed line and a dot, drawn by a small
+  plugin that reads a ref, so the chart is redrawn, not rebuilt.
+- Map → chart: a click is checked with Cesium's pick in a 9 × 9 px box (a 4 px line is hard to
+  hit); if it hit the trail, the ground under the click gives [lon, lat], and the nearest point
+  of the trail gives the distance (as for the daily stages).
+- The globe marker is one entity in its own data source, raised to the top; a new distance only
+  moves it. A new trek starts with nothing highlighted.
+- A visually hidden element carries the marker's state for the e2e tests (the globe is a canvas).
+**Alternatives:** the value in `App` state (every mouse move would re-render the whole page);
+Chart.js's own tooltip events only (no way to clear on leaving the chart, no map → chart path).
+**Limits:** The link needs a pointer (mouse or touch); keyboard users get the same information
+as text (totals, stop list, tooltips are not the only source). The e2e test for chart → map
+needs terrain (a chart), so it runs locally with a token; map → chart runs on CI without terrain.
