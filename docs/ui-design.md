@@ -63,7 +63,7 @@ flowchart LR
   Globe --> Stops["StopMarkers + StopPopup #15"]:::sparsh
   Globe --> StageLayer["StageLayer (exists) #49<br/>highlights one day"]:::sparsh
   Globe --> Fly["FlythroughLayer + controller (exists) #19<br/>(no UI of its own)"]:::sparsh
-  Globe --> HoverMarker["ProfileHoverMarker #22"]:::dipson
+  Globe --> HoverMarker["ProfileHoverMarker (exists) #22"]:::dipson
   Globe --> Quakes["EarthquakeLayer #25"]:::dipson
   Globe --> Credits["Credits #15 #25 #26<br/>in Cesium's credit area"]:::dipson
   GlobeArea --> Fps["FpsOverlay #29 (toggle)"]:::sparsh
@@ -130,6 +130,7 @@ change many times a second in a small context of their own (or out of React enti
 
 As built so far: the selected trek (#16), the flythrough's status and chosen speed (#19–#20) are
 `useState` in `App`, passed down as props (ADR-026, ADR-028, ADR-029); `AppState` comes later.
+`profileHighlightM` lives in `ProfileHoverProvider` as planned (#22, ADR-031).
 
 `CesiumGlobe` also shares the Cesium Viewer through `ViewerContext` (added in #15). It does not
 change after start-up, so sharing it re-renders nothing.
@@ -314,7 +315,7 @@ Still to add:
 - the `AppState` context (see above);
 - the flythrough's speed and jump-to-day controls (#20). The controller itself exists since #19;
   `FlythroughLayer` hands it to `App` with a callback instead of `ViewerContext` (ADR-028);
-- the chart ↔ map link (#22); the profile strip itself exists since #21 (a column under the globe);
+- the flythrough's position on the profile chart (FR4); the strip (#21) and the chart ↔ map link (#22) exist;
 - the USGS and Open-Meteo credits (#25, #26); the OSM credit is on since #14.
 
 ### Gaps in the current code this design fixes later

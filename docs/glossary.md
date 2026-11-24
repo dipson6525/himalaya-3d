@@ -18,6 +18,7 @@ Plain-English definitions of terms used in the code and docs. Add a term the fir
 | **EPSG code** | A number that names a coordinate system: 4326 = longitude/latitude (WGS84); 32645 = UTM zone 45 north. |
 | **ECEF** | Earth-Centred, Earth-Fixed coordinates: x, y, z in metres from the Earth's centre. Cesium's `Cartesian3`. |
 | **Exponential smoothing** | Each frame, move a fraction α = 1 − e^(−dt/τ) of the way to the target; after τ seconds about 63% of the way. Used for the flythrough heading. |
+| **Frame throttle** | Remember only the newest value and pass it on at most once per animation frame (`frameThrottle.ts`), so fast mouse moves do not cause useless work. |
 | **FeatureCollection** | A GeoJSON object holding a list of Features; each route file is one. A Feature = geometry + properties. |
 | **Ellipsoid height** | Height above the smooth WGS84 ellipsoid (Cesium's terrain heights). Not the same as height above sea level, which the cited stop altitudes use. |
 | **envDir** | The Vite setting for which folder `.env*` files are read from (ours: project root). |

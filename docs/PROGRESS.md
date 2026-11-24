@@ -5,6 +5,29 @@ what the TEAM must do next, open questions.
 
 ---
 
+## 2026-11-24 · M4 #22 Profile ↔ map link (owner: Dipson)
+
+**Done**
+
+- PR #55 (#21 elevation profile) merged after its review fixes and green CI (ADR-021). CI had
+  first failed on a flythrough test; the cause (the first frame after Play did not move) was
+  fixed in the flythrough.
+- Pointing at the chart shows a white marker at that spot on the trail on the globe; clicking
+  the trail on the globe marks the same distance on the chart (dashed line and dot) (ADR-031).
+- The shared distance lives in its own small provider, so a mouse move re-renders only the chart
+  strip and the globe marker; the chart passes on at most one value per animation frame.
+- Found by the e2e test: Chart.js calls `onHover` only inside the plot area, so leaving the chart
+  never cleared the highlight; now the canvas's `mouseleave` does.
+- Screenshot `docs/screenshots/m4-profile-map-link-synthetic.png` (synthetic route, real terrain).
+
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 165
+passed; `npm run e2e` 16 passed + 1 skipped with the token, and 16 passed + 1 skipped without
+(each mode skips the link test it cannot do exactly).
+
+**Team next**
+
+- Dipson: do exercises 14–15; try the link with mouse and touch.
+
 ## 2026-11-23 · M4 #21 Elevation profile (owner: Dipson)
 
 **Done**
