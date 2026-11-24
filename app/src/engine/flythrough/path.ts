@@ -3,9 +3,9 @@
  * Owner: Sparsh Gorkhali. Related FR: FR3 (animated flythrough), issue #19.
  *
  * Steps, each a small function with its own tests (path.test.ts):
- * 1. resampleTrail: points at equal intervals of at most SAMPLE_SPACING_M metres along the trail
- *    (the trail's own points are unevenly spaced: a few metres apart on switchbacks, hundreds of
- *    metres on straight bits).
+ * 1. resampleTrail (lib/geo/resample.ts): points at equal intervals of at most SAMPLE_SPACING_M
+ *    metres along the trail (the trail's own points are unevenly spaced: a few metres apart on
+ *    switchbacks, hundreds of metres on straight bits).
  * 2. safeHeights: the height of the flight line at each sample = the HIGHEST terrain within a few
  *    samples either side + a clearance, so the curve between samples cannot dip into a ridge.
  * 3. buildFlightPath: a Catmull-Rom spline through those points in ECEF (Cesium's x, y, z in
@@ -23,12 +23,8 @@
  * Only Cesium's maths classes are used (no Viewer), so all of this runs in Vitest under Node.
  */
 import { Cartesian3, Cartographic, CatmullRomSpline, Matrix4, Transforms } from 'cesium';
-import {
-  cumulativeDistancesM,
-  locateDistance,
-  pointOnSegment,
-  type LonLat,
-} from '../../lib/geo/distance';
+import { cumulativeDistancesM, locateDistance, type LonLat } from '../../lib/geo/distance';
+import type { TrailSamples } from '../../lib/geo/resample';
 
 /** Largest distance between two samples of the flight line, in metres. */
 export const SAMPLE_SPACING_M = 100;
@@ -44,36 +40,6 @@ export const BEHIND_M = 600;
 export const UP_M = 300;
 /** … and looks at the point this far ahead. */
 export const AHEAD_M = 800;
-
-/** Samples along the trail: their [lon, lat] and their distance from the start in metres. */
-export interface TrailSamples {
-  points: LonLat[];
-  distancesM: number[];
-}
-
-/**
- * Points at equal intervals of at most `spacingM` metres along the trail, from the start to the
- * exact end. Equal intervals (e.g. 2,223.9 m → 23 intervals of 96.7 m, not 22 of 100 m and one of
- * 23.9 m) keep the spline's shape even; a very short last piece would make it bulge.
- * Uses the cumulative-distance table and binary search from lib/geo/distance.ts (#18).
- */
-export function resampleTrail(
-  trail: readonly LonLat[],
-  spacingM: number = SAMPLE_SPACING_M,
-): TrailSamples {
-  if (!(spacingM > 0)) throw new RangeError(`spacing must be positive, got ${spacingM}`);
-  if (trail.length < 2) throw new RangeError('a trail needs at least 2 points');
-  const cumulative = cumulativeDistancesM(trail);
-  const total = cumulative[cumulative.length - 1];
-  // A spline needs increasing "times"; a trail whose points are all the same place has none.
-  if (!(total > 0)) throw new RangeError('the trail has no length');
-  const intervals = Math.ceil(total / spacingM);
-  const distancesM: number[] = [];
-  for (let i = 0; i < intervals; i++) distancesM.push((i * total) / intervals);
-  distancesM.push(total); // always end exactly at the end of the trail
-  const points = distancesM.map((s) => pointOnSegment(trail, locateDistance(cumulative, s)));
-  return { points, distancesM };
-}
 
 /**
  * Flight-line heights: for sample i, the highest ground height between samples i − window and

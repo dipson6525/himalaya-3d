@@ -30,6 +30,7 @@ in M7 you lead performance measurement and testing.
 | `app/src/lib/geo/distance.ts` | Haversine, cumulative distance, distance → (segment, t) lookup | FR3, FR4 |
 | `app/src/lib/geo/distance.test.ts` | Hand-checkable tests (1° = 111,194.9 m, πR/2, πR, uneven spacing) | FR3, FR4 |
 | `app/src/lib/geo/stages.ts` (+ test) | Put stops on the trail, cut the trail into daily stages | FR2 |
+| `app/src/lib/geo/resample.ts` (+ test), `app/src/engine/terrain.ts` | Equal-interval samples along a trail; wait for World Terrain (moved here in #21, shared by flythrough and profile) | FR3, FR4 |
 | `app/src/features/routes/StageLayer.tsx` | Highlights the chosen day's stage; flies the camera to it | FR2 |
 | `app/e2e/stages.spec.ts`, `app/e2e/serveFixtures.ts` | e2e: day buttons, highlight, clearing; shared fixture server | FR2 |
 | `app/src/engine/flythrough/path.ts` (+ test) | Flythrough maths: resampling, safe heights, spline, distance table, camera pose, smoothing | FR3 |
@@ -379,6 +380,10 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
 - **Found while refactoring.** Moving preparation into `ensurePath()` added one more `await`
   step, and two Play presses sharing one preparation could then both start a loop (camera at
   double speed). A controller unit test caught it.
+- **The first frame moves too (found by CI).** `play()` sets `lastFrameTime =
+  performance.now()`, so the first frame already moves by the time since Play (at most 0.1 s).
+  Before, the first frame only noted the time; on CI, where one frame could take most of a second,
+  a 1-second play did not move at all and the resume test failed.
 - **Only the newest command counts (found in code review).** Play → (terrain still loading) →
   a day in the stop list (pauses) → "Day 4": the old Play came back and started playing. Now
   every command takes a number (`++this.request`); after waiting, play() and jumpTo() only act

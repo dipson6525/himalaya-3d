@@ -40,6 +40,22 @@ add the reviewer's name, and fix `app/src/i18n/ne.json` if needed.
 | `fly.jumpLabel` | Jump to the start of a day | कुनै दिनको सुरुमा जानुहोस् | Needs review (group label above the "Day N" buttons) | |
 | `fly.jumpTo` | Jump to the start of day {day} | दिन {day} को सुरुमा जानुहोस् | Needs review (keep {day}; the screen-reader name of each "Day N" button) | |
 | `fly.day` | Day {day} | दिन {day} | Needs review (keep {day}) | |
+| `profile.heading` | Elevation profile | उचाइ प्रोफाइल | Needs review | |
+| `profile.show` | Show profile | प्रोफाइल देखाउनुहोस् | Needs review | |
+| `profile.hide` | Hide profile | प्रोफाइल लुकाउनुहोस् | Needs review | |
+| `profile.loading` | Sampling the terrain along the trail… | बाटोभरिको भू-सतहको उचाइ लिइँदैछ… | Needs review | |
+| `profile.error` | Could not load the terrain heights for this trek. | यस पदयात्राको भू-सतहको उचाइ लोड गर्न सकिएन। | Needs review | |
+| `profile.noTerrain` | No terrain without a Cesium ion token, so there is no elevation profile. | Cesium ion टोकन बिना भू-सतह छैन, त्यसैले उचाइ प्रोफाइल छैन। | Needs review | |
+| `profile.stats` | Total ascent {ascent} m · Total descent {descent} m · Highest terrain point {highest} m at {at} km | जम्मा चढाइ {ascent} मि. · जम्मा ओरालो {descent} मि. · भू-सतहको सबैभन्दा अग्लो बिन्दु … | Needs review (keep all four placeholders) | |
+| `profile.chartLabel` | Elevation profile of {name}: {length} km long, highest terrain point {highest} m. | {name} को उचाइ प्रोफाइल: … | Needs review (screen-reader summary of the chart) | |
+| `profile.source` | Terrain heights from Cesium World Terrain, above the WGS84 ellipsoid, every 50 m; the totals follow the trek stop to stop. … | भू-सतहको उचाइ Cesium World Terrain बाट, … | Needs review (accuracy note: high priority) | |
+| `profile.axisDistance` | Distance along the trail (km) | बाटोमा दूरी (कि.मि.) | Needs review | |
+| `profile.axisHeight` | Terrain height (m) | भू-सतहको उचाइ (मि.) | Needs review | |
+| `profile.stopTooltip` | Day {day} · {name} · cited altitude {altitude} m | दिन {day} · {name} · उद्धृत उचाइ {altitude} मि. | Needs review (keep {day}, {name}, {altitude}) | |
+| `profile.retry` | Try again | फेरि प्रयास गर्नुहोस् | Needs review | |
+| `profile.tooltipDistance` | {km} km | {km} कि.मि. | Needs review (keep {km}) | |
+| `profile.axisHeightDatum` | above WGS84 ellipsoid | WGS84 एलिप्सोइडमाथि | Needs review (second line of the height axis) | |
+| `profile.heightTooltip` | Terrain {height} m | भू-सतह {height} मि. | Needs review (keep {height}) | |
 | `layers.comingSoon` | Live earthquake and weather layers arrive with issues #25 and #26. | भूकम्प र मौसमका प्रत्यक्ष तहहरू इस्यु #२५ र #२६ मा आउँछन्। | Needs review | |
 | `disclaimer.medical` | Safety information in this app is general guidance only, not medical advice. … | यस एपको सुरक्षा जानकारी सामान्य मार्गदर्शन मात्र हो, चिकित्सा सल्लाह होइन। … | Needs review (safety wording — high priority) | |
 

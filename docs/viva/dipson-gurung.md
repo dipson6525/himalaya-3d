@@ -29,6 +29,10 @@ keeps English and Nepali in sync, and the requirements and architecture document
 | `app/src/features/routes/TrekPanel.tsx` | Trek tab: trek selector, status line, stop list | FR2 |
 | `app/src/features/routes/useRoutes.ts` | Route list, selected trek, cache, ignoring late downloads (shared with Sparsh) | FR2 |
 | `app/e2e/trek-selector.spec.ts` | Browser tests: keyboard selection, cache, failed and late downloads, tabs | FR2, NFR11 |
+| `app/src/features/elevation/profile.ts` (+ test) | Profile maths: dead-band totals, highest point, stops on the profile | FR4 |
+| `app/src/features/elevation/sampleHeights.ts` (+ test) | Terrain heights every ≤ 50 m, cached per route | FR4 |
+| `app/src/features/elevation/ElevationSampler.tsx`, `ProfileStrip.tsx` | Sampling inside the globe; the Chart.js strip under it | FR4 |
+| `app/e2e/profile.spec.ts` | Browser test: chart, totals, data note, Hide / Show | FR4 |
 
 ## Module walkthroughs
 
@@ -167,8 +171,52 @@ rebuilt by hand. The footer lost `role="note"`, so it is the page's "contentinfo
 `aria-pressed`: a *toggle* button, which a screen reader announces as "pressed" or "not
 pressed". Pressing it highlights that day's stage on the globe; pressing again removes it. The
 first stop has no button because no stage is walked to reach it. The selected stage lives in
-`App` as the id of its end stop; `TrekPanel.chooseTrek` clears it before loading another trek,
-so a highlight never carries over to the wrong trek.
+`App` as {trek id, end-stop id, flyTo}; the trek id is checked, so a highlight never carries over
+to another trek, and `TrekPanel.chooseTrek` also clears it before loading another trek.
+
+### Elevation profile (`features/elevation/`, issue #21)
+
+**What the user gets.** A strip under the globe: "Elevation profile", the totals ("Total ascent
+… · Total descent … · Highest point … at … km"), a line chart of height against distance with the
+stops as yellow dots, and a note on where the heights come from. "Hide profile" folds it away.
+
+**Where the heights come from.**
+1. `resampleTrail(trail, 50)`: points at equal intervals of at most 50 m (the synthetic Test Route
+   is 22,641.3 m: ceil(22,641.3 / 50) = 453 intervals of 49.98 m → 454 samples).
+2. `sampleTerrainMostDetailed`: Cesium World Terrain's height at each point, at its finest
+   detail. These are heights above the WGS84 *ellipsoid*, a smooth mathematical shape, not above
+   sea level like the cited stop altitudes, and the terrain model is not a survey. So the strip
+   says they are not the cited altitudes, stops are drawn on the terrain line, and the cited
+   altitude goes in the tooltip.
+3. Cached per route id, so going back to a trek does not sample again. A failure is not cached,
+   and the strip offers "Try again".
+4. No height may become a silent 0 m: a failed tile fails the sampling, and heights start as NaN
+   so an unfilled one is caught.
+5. No token → no terrain → no profile: the strip shows only a notice, no numbers, no chart.
+
+**Dead band, worked.** The rule: a step further in the SAME direction always counts; a step
+the OTHER way counts only once it is at least 5 m from the last counted height. Heights 100,
+103, 101, 110, 108, 120, 95: no direction yet, 103 and 101 are within 5 m, ignored; 110 is +10 →
+ascent 10, now climbing; 108 is −2 the other way, under 5, ignored; 120 is +10 the same way →
+ascent 20; 95 is −25 the other way, over 5 → descent 25. Totals: 20 m up, 25 m down. Summing every
+step would give 24 and 29: the wobbles 3, 2, 2 and 2 m are noise. (A first version only counted
+from turning points and dropped the last few metres before each peak: up to 1,104 and back in
+1 m steps gave 100/100 instead of 104/104. Code review found it; a test now checks it.)
+
+**Totals as walked.** The totals follow the trek stop to stop in day order, each stage in its
+own direction (`walkedTotals`). For an out-and-back trek the trail line is stored once, so
+"the line once" would leave out the whole way back.
+
+**Chart.js and React.** Chart.js draws on a `<canvas>` outside React, like Cesium. The chart is
+created in an effect and destroyed in its cleanup (when the profile changes, the strip is hidden
+or the page closes). A canvas is just pixels to a screen reader, so it has `role="img"` and an
+`aria-label` summary, and the totals are also text.
+
+**Data flow.** `ElevationSampler` sits inside `CesiumGlobe` (it needs the terrain) and reports
+`{status, routeId, profile}` to `App` with a callback; `App` passes it to `ProfileStrip` under
+the globe. The same pattern as the flythrough's controller. The header's status line is one live
+region that is always on the page, so screen readers announce loading, errors and the totals,
+and it stays visible when the chart is hidden.
 
 ## Key concepts from first principles
 
@@ -297,6 +345,23 @@ so a highlight never carries over to the wrong trek.
 29. **How do you know the tabs work without a mouse?** — `trek-selector.spec.ts` drives them with
     ArrowLeft/Right, Home, End and Tab and checks focus, `aria-selected` and that exactly one tab
     is a Tab stop; `tabKeys.test.ts` checks the key → index maths.
+30. **How is total ascent computed, and why not just add up every rise?** — With a 5 m dead band:
+    steps the same way always count, a step the other way only from 5 m; summing every
+    sample-to-sample wobble would inflate it. Show the worked example.
+31. **Are the profile heights the altitudes of the stops?** — No: terrain heights above the WGS84
+    ellipsoid from Cesium World Terrain. The cited stop altitudes are above sea level from other
+    sources; the strip says so and the tooltip shows the cited altitude.
+32. **Why is a failed terrain tile an error, not a 0?** — A 0 m height would look like a cliff
+    and wreck the totals; better to say "could not load" and let the user retry.
+33. **How does a screen reader user get the chart's information?** — The canvas has `role="img"`
+    with a summary, and the totals are written out as text.
+34. **Why is the chart created in useEffect and destroyed in the cleanup?** — It draws on a canvas
+    outside React; without destroy, each new profile would leave an old chart (and its listeners)
+    behind.
+35. **What does the strip show without a Cesium token, and why not "0 m"?** — Only a notice: there
+    is no terrain, and "0 m" would present an untrue number as a fact.
+36. **Why "as walked" totals?** — For an out-and-back trek the line is stored once; walking it
+    stop to stop counts the way back too.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -318,6 +383,12 @@ so a highlight never carries over to the wrong trek.
    explain which test fails and why. Undo the change.
 10. Work out by hand `nextTabIndex(0, 'ArrowLeft', 3)` and `nextTabIndex(2, 'ArrowRight', 3)`,
     then check your answers against `tabKeys.test.ts`.
+11. Work out the dead-band totals by hand for 500, 506, 503, 511, 509, 498 with a 5 m band, then
+    add your answer as a test in `profile.test.ts`.
+12. Change `CLIMB_THRESHOLD_M` to 0 and to 20, look at the totals for the synthetic route in the
+    browser (with the token), and explain the difference. Change it back.
+13. Turn on a screen reader (Narrator on Windows: Ctrl+Win+Enter), go to the profile strip with
+    the keyboard and write down what it reads for the heading, the totals, the chart and the button.
 
 ## AI use in this part
 
@@ -337,15 +408,23 @@ so a highlight never carries over to the wrong trek.
   ADR-026 and this section. A code-reviewer subagent found the B → A → B race, weak tab tests, a
   missing Tab stop on empty panels and touch targets under 44 px; all fixed. Mutation checks
   showed each new e2e test fails when its behaviour is removed.
+- **Issue #21 (2026-11-23):** Claude Code wrote `profile.ts`, `sampleHeights.ts`,
+  `ElevationSampler.tsx`, the strip (now `ProfileStrip.tsx`), their tests, ADR-030 and this
+  section, and added chart.js. It ran the browser tests with and without a token. A code-reviewer
+  subagent found untrue numbers (0 m without terrain, totals missing the way back, a dead band
+  that dropped the last metres before a peak) and smaller issues; all fixed, with tests that fail
+  if the fixes are undone.
 - **What you must still do:** read the design doc and challenge it (does the layout suit how a
-  trekker plans?), compare it with the real app as each feature lands, and do exercises 5–7 by
-  hand.
+  trekker plans?), compare it with the real app as each feature lands, and do exercises 5–7 and
+  11–13 by hand.
 
 ## Changelog
 
 - 2026-11-19 — M0: layout, disclaimer, i18n helper + parity test, requirements, architecture.
 - 2026-11-22 — M3 #16: Trek tab and side-panel tabs walkthrough, stale-response and
   `useRef` concepts, questions 23–29, exercises 8–10, AI use.
+- 2026-11-23 — M4 #21: elevation profile walkthrough (where heights come from, dead band worked
+  example, Chart.js lifecycle, data flow), questions 30–34, exercises 11–13, AI use.
 - 2026-11-20 — M1 #7: UI design walkthrough (layout, component tree, shared state, wireframes,
   limits), concepts (context, re-render, derived state, roles, lang, ARIA tabs), questions 8–22,
   exercises 5–7, AI use; corrected after the viva-examiner check.

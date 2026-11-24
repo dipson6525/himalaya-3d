@@ -6,8 +6,10 @@
  * screen, as required by our safety rule. The side panel has three tabs (SidePanel.tsx):
  * Trek (choose a trek, see its stops, play the flythrough), Plan and Layers (later issues).
  *
- * Layers that draw on the globe (RouteLayer, StageLayer, FlythroughLayer) are children of
- * CesiumGlobe, so they can reach the Cesium Viewer through ViewerContext (docs/ui-design.md).
+ * Layers that draw on the globe (RouteLayer, StageLayer, FlythroughLayer) and the profile's
+ * terrain sampler (ElevationSampler) are children of CesiumGlobe, so they can reach the Cesium
+ * Viewer through ViewerContext (docs/ui-design.md). The elevation profile strip sits under the
+ * globe (#21).
  * State shared by the globe and the panel (the selected route, the selected daily stage, the
  * flythrough controller and its status) lives here and is passed down as props.
  */
@@ -18,6 +20,8 @@ import {
   type FlythroughStatus,
 } from '../engine/flythrough/FlythroughController';
 import { FlythroughLayer } from '../engine/flythrough/FlythroughLayer';
+import { ElevationSampler, type ProfileState } from '../features/elevation/ElevationSampler';
+import { ProfileStrip } from '../features/elevation/ProfileStrip';
 import { FlythroughControls } from '../features/routes/FlythroughControls';
 import { routeStages } from '../features/routes/routeEntities';
 import { RouteLayer } from '../features/routes/RouteLayer';
@@ -91,6 +95,12 @@ export function App() {
     }
   }
 
+  // Elevation profile (#21): sampled inside the globe, shown in the strip under it.
+  const [profile, setProfile] = useState<ProfileState>({ status: 'idle' });
+  const onProfile = useCallback((state: ProfileState) => setProfile(state), []);
+  // Each "Try again" press increases this, which makes ElevationSampler sample again.
+  const [profileAttempt, setProfileAttempt] = useState(0);
+
   /** Called by TrekPanel: highlight the stage ending at `toStopId` (null = none). */
   function selectStage(toStopId: string | null) {
     // The stage highlight flies the camera to the stage, so a running flythrough pauses first;
@@ -151,21 +161,34 @@ export function App() {
       </header>
 
       <main className="app-main">
-        <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
-          <CesiumGlobe>
-            <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
-            <StageLayer
-              stage={selectedStage}
-              flyTo={stageChoice?.flyTo ?? true}
-              onDrawn={setDrawnStage}
-            />
-            <FlythroughLayer
-              route={routes.current}
-              onController={onFlyController}
-              onStatus={onFlyStatus}
-            />
-          </CesiumGlobe>
-        </section>
+        <div className="map-column">
+          <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
+            <CesiumGlobe>
+              <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
+              <StageLayer
+                stage={selectedStage}
+                flyTo={stageChoice?.flyTo ?? true}
+                onDrawn={setDrawnStage}
+              />
+              <FlythroughLayer
+                route={routes.current}
+                onController={onFlyController}
+                onStatus={onFlyStatus}
+              />
+              <ElevationSampler
+                route={routes.current}
+                attempt={profileAttempt}
+                onProfile={onProfile}
+              />
+            </CesiumGlobe>
+          </section>
+          <ProfileStrip
+            state={profile}
+            route={routes.current}
+            language={LANGUAGE}
+            onRetry={() => setProfileAttempt((n) => n + 1)}
+          />
+        </div>
         <SidePanel tabs={tabs} language={LANGUAGE} />
       </main>
 
