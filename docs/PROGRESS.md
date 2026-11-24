@@ -23,6 +23,10 @@ what the TEAM must do next, open questions.
   a Try again button), heights that could silently stay 0 m (now an error). Also: datum wording,
   a status line that stays visible, the tablet layout, a tooltip string not translated. New open
   question Q16 for Unique (ellipsoid vs sea-level heights in #13).
+- CI then failed the flythrough's "resume" e2e test (the distance did not change in 1 s after
+  Resume, on CI only). Cause: the first frame after Play / Resume only noted the time, so on a
+  machine where a frame takes most of a second nothing moved. Fixed in the flythrough: the frame
+  clock starts at Play, so the first frame already moves (with a unit test).
 - Shared helpers: `resampleTrail` moved to `lib/geo/resample.ts`, `terrainReady` to
   `engine/terrain.ts` (the flythrough uses both too).
 - New dependency: chart.js ^4.6.1.

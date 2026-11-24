@@ -380,6 +380,10 @@ need checking on real treks, and the FPS on the team's laptops (#29). TODO(team)
 - **Found while refactoring.** Moving preparation into `ensurePath()` added one more `await`
   step, and two Play presses sharing one preparation could then both start a loop (camera at
   double speed). A controller unit test caught it.
+- **The first frame moves too (found by CI).** `play()` sets `lastFrameTime =
+  performance.now()`, so the first frame already moves by the time since Play (at most 0.1 s).
+  Before, the first frame only noted the time; on CI, where one frame could take most of a second,
+  a 1-second play did not move at all and the resume test failed.
 - **Only the newest command counts (found in code review).** Play → (terrain still loading) →
   a day in the stop list (pauses) → "Day 4": the old Play came back and started playing. Now
   every command takes a number (`++this.request`); after waiting, play() and jumpTo() only act
