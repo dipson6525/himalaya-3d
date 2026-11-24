@@ -70,6 +70,7 @@ body,
 
 .map-column .globe-area {
   flex: 1;
+  min-height: 200px; /* the open profile strip must never squash the globe to nothing */
 }
 
 .globe-area,

@@ -20,3 +20,4 @@ resolved. Newest at the top.
 | Q13 | The proposal PDF (`Himalaya_3D_Final_Proposal.pdf`) is in the project folder but not in git. Commit it to `docs/` so the report can cite it? | M8 | Team | Open |
 | Q14 | The proposal was "submitted to Saugat Singh"; the setup brief named Suman Shrestha as coordinator. Which names (and roles) go in the README and the final report? | M8 | Team | Open |
 | Q15 | After the 2026-11-21 history swap (ADR-020), the old history is kept in `archive/old-*` branches. Delete them once the team is sure nothing is missing? | Any time | Repo owner | Open |
+| Q16 | Cesium's terrain heights are above the WGS84 ellipsoid; the cited stop altitudes are above sea level. How big is the difference (the geoid undulation) over the trek areas, and should #13 (altitude cross-check) and the 50 m disagreement rule in `data/routes/route-sources.md` correct for it? TODO(team): verify from a cited source. | #13 | Unique | Open |

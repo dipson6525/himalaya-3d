@@ -31,7 +31,7 @@ keeps English and Nepali in sync, and the requirements and architecture document
 | `app/e2e/trek-selector.spec.ts` | Browser tests: keyboard selection, cache, failed and late downloads, tabs | FR2, NFR11 |
 | `app/src/features/elevation/profile.ts` (+ test) | Profile maths: dead-band totals, highest point, stops on the profile | FR4 |
 | `app/src/features/elevation/sampleHeights.ts` (+ test) | Terrain heights every ≤ 50 m, cached per route | FR4 |
-| `app/src/features/elevation/ElevationSampler.tsx`, `ElevationProfile.tsx` | Sampling inside the globe; the Chart.js strip under it | FR4 |
+| `app/src/features/elevation/ElevationSampler.tsx`, `ProfileStrip.tsx` | Sampling inside the globe; the Chart.js strip under it | FR4 |
 | `app/e2e/profile.spec.ts` | Browser test: chart, totals, data note, Hide / Show | FR4 |
 
 ## Module walkthroughs
@@ -188,13 +188,24 @@ stops as yellow dots, and a note on where the heights come from. "Hide profile" 
    sea level like the cited stop altitudes, and the terrain model is not a survey. So the strip
    says they are not the cited altitudes, stops are drawn on the terrain line, and the cited
    altitude goes in the tooltip.
-3. Cached per route id, so going back to a trek does not sample again. A failure is not cached.
-4. No token → no terrain → every height 0 m, and the strip says so.
+3. Cached per route id, so going back to a trek does not sample again. A failure is not cached,
+   and the strip offers "Try again".
+4. No height may become a silent 0 m: a failed tile fails the sampling, and heights start as NaN
+   so an unfilled one is caught.
+5. No token → no terrain → no profile: the strip shows only a notice, no numbers, no chart.
 
-**Dead band, worked.** Heights 100, 103, 101, 110, 108, 120, 95 with a 5 m band: start at
-100; 103 and 101 are within 5 m, ignored; 110 is +10 → ascent 10, new turning point 110; 108 is
-−2, ignored; 120 is +10 → ascent 20, turning point 120; 95 is −25 → descent 25. Totals: 20 m up,
-25 m down. Summing every step would give 24 and 29: the wobbles 3, 2, 2 and 2 m are noise.
+**Dead band, worked.** The rule: a step further in the SAME direction always counts; a step
+the OTHER way counts only once it is at least 5 m from the last counted height. Heights 100,
+103, 101, 110, 108, 120, 95: no direction yet, 103 and 101 are within 5 m, ignored; 110 is +10 →
+ascent 10, now climbing; 108 is −2 the other way, under 5, ignored; 120 is +10 the same way →
+ascent 20; 95 is −25 the other way, over 5 → descent 25. Totals: 20 m up, 25 m down. Summing every
+step would give 24 and 29: the wobbles 3, 2, 2 and 2 m are noise. (A first version only counted
+from turning points and dropped the last few metres before each peak: up to 1,104 and back in
+1 m steps gave 100/100 instead of 104/104. Code review found it; a test now checks it.)
+
+**Totals as walked.** The totals follow the trek stop to stop in day order, each stage in its
+own direction (`walkedTotals`). For an out-and-back trek the trail line is stored once, so
+"the line once" would leave out the whole way back.
 
 **Chart.js and React.** Chart.js draws on a `<canvas>` outside React, like Cesium. The chart is
 created in an effect and destroyed in its cleanup (when the profile changes, the strip is hidden
@@ -202,8 +213,10 @@ or the page closes). A canvas is just pixels to a screen reader, so it has `role
 `aria-label` summary, and the totals are also text.
 
 **Data flow.** `ElevationSampler` sits inside `CesiumGlobe` (it needs the terrain) and reports
-`{status, profile}` to `App` with a callback; `App` passes it to `ElevationProfile` under the
-globe. The same pattern as the flythrough's controller.
+`{status, routeId, profile}` to `App` with a callback; `App` passes it to `ProfileStrip` under
+the globe. The same pattern as the flythrough's controller. The header's status line is one live
+region that is always on the page, so screen readers announce loading, errors and the totals,
+and it stays visible when the chart is hidden.
 
 ## Key concepts from first principles
 
@@ -332,9 +345,9 @@ globe. The same pattern as the flythrough's controller.
 29. **How do you know the tabs work without a mouse?** — `trek-selector.spec.ts` drives them with
     ArrowLeft/Right, Home, End and Tab and checks focus, `aria-selected` and that exactly one tab
     is a Tab stop; `tabKeys.test.ts` checks the key → index maths.
-30. **How is total ascent computed, and why not just add up every rise?** — With a 5 m dead band
-    from the last turning point; summing every sample-to-sample wobble would inflate it. Show the
-    worked example.
+30. **How is total ascent computed, and why not just add up every rise?** — With a 5 m dead band:
+    steps the same way always count, a step the other way only from 5 m; summing every
+    sample-to-sample wobble would inflate it. Show the worked example.
 31. **Are the profile heights the altitudes of the stops?** — No: terrain heights above the WGS84
     ellipsoid from Cesium World Terrain. The cited stop altitudes are above sea level from other
     sources; the strip says so and the tooltip shows the cited altitude.
@@ -345,6 +358,10 @@ globe. The same pattern as the flythrough's controller.
 34. **Why is the chart created in useEffect and destroyed in the cleanup?** — It draws on a canvas
     outside React; without destroy, each new profile would leave an old chart (and its listeners)
     behind.
+35. **What does the strip show without a Cesium token, and why not "0 m"?** — Only a notice: there
+    is no terrain, and "0 m" would present an untrue number as a fact.
+36. **Why "as walked" totals?** — For an out-and-back trek the line is stored once; walking it
+    stop to stop counts the way back too.
 
 ## Prove you understand it (do these by hand, no AI)
 
@@ -392,9 +409,11 @@ globe. The same pattern as the flythrough's controller.
   missing Tab stop on empty panels and touch targets under 44 px; all fixed. Mutation checks
   showed each new e2e test fails when its behaviour is removed.
 - **Issue #21 (2026-11-23):** Claude Code wrote `profile.ts`, `sampleHeights.ts`,
-  `ElevationSampler.tsx`, `ElevationProfile.tsx`, their tests, ADR-030 and this section, and added
-  chart.js. It ran the browser tests with and without a token and had a code-reviewer subagent
-  check the commit.
+  `ElevationSampler.tsx`, the strip (now `ProfileStrip.tsx`), their tests, ADR-030 and this
+  section, and added chart.js. It ran the browser tests with and without a token. A code-reviewer
+  subagent found untrue numbers (0 m without terrain, totals missing the way back, a dead band
+  that dropped the last metres before a peak) and smaller issues; all fixed, with tests that fail
+  if the fixes are undone.
 - **What you must still do:** read the design doc and challenge it (does the layout suit how a
   trekker plans?), compare it with the real app as each feature lands, and do exercises 5–7 and
   11–13 by hand.

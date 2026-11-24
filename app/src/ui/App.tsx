@@ -20,8 +20,8 @@ import {
   type FlythroughStatus,
 } from '../engine/flythrough/FlythroughController';
 import { FlythroughLayer } from '../engine/flythrough/FlythroughLayer';
-import { ElevationProfile } from '../features/elevation/ElevationProfile';
 import { ElevationSampler, type ProfileState } from '../features/elevation/ElevationSampler';
+import { ProfileStrip } from '../features/elevation/ProfileStrip';
 import { FlythroughControls } from '../features/routes/FlythroughControls';
 import { routeStages } from '../features/routes/routeEntities';
 import { RouteLayer } from '../features/routes/RouteLayer';
@@ -98,6 +98,8 @@ export function App() {
   // Elevation profile (#21): sampled inside the globe, shown in the strip under it.
   const [profile, setProfile] = useState<ProfileState>({ status: 'idle' });
   const onProfile = useCallback((state: ProfileState) => setProfile(state), []);
+  // Each "Try again" press increases this, which makes ElevationSampler sample again.
+  const [profileAttempt, setProfileAttempt] = useState(0);
 
   /** Called by TrekPanel: highlight the stage ending at `toStopId` (null = none). */
   function selectStage(toStopId: string | null) {
@@ -173,10 +175,19 @@ export function App() {
                 onController={onFlyController}
                 onStatus={onFlyStatus}
               />
-              <ElevationSampler route={routes.current} onProfile={onProfile} />
+              <ElevationSampler
+                route={routes.current}
+                attempt={profileAttempt}
+                onProfile={onProfile}
+              />
             </CesiumGlobe>
           </section>
-          <ElevationProfile state={profile} route={routes.current} language={LANGUAGE} />
+          <ProfileStrip
+            state={profile}
+            route={routes.current}
+            language={LANGUAGE}
+            onRetry={() => setProfileAttempt((n) => n + 1)}
+          />
         </div>
         <SidePanel tabs={tabs} language={LANGUAGE} />
       </main>

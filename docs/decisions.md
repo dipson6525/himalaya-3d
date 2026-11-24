@@ -504,12 +504,22 @@ cached per route. The route files carry no heights along the trail (ADR-017).
 - These are terrain heights from Cesium World Terrain, above the WGS84 ellipsoid. They are not
   the cited stop altitudes (above sea level, from other sources), so the strip says so under the
   chart, stop markers are drawn ON the terrain line, and the cited altitude is in the tooltip.
-- A terrain tile that fails to load fails the whole sampling (`rejectOnTileFail`), instead of
-  leaving a gap that would look like a 0 m cliff. Without a token there is no terrain: heights
-  are 0 m and the strip says so.
-- Totals use a 5 m dead band: a change counts only once the height is at least 5 m from the last
-  turning point. Summing every sample-to-sample wobble would inflate the totals; a steady climb
-  still counts in full. 5 m is a design choice, not a measurement.
+- No height may silently become 0 m (it would look like a cliff): a terrain tile that fails to
+  load fails the whole sampling (`rejectOnTileFail`), and every height starts as NaN so one that
+  Cesium leaves unfilled is caught too. The strip then shows the error and a "Try again" button.
+- Without a token there is no terrain, so there is no profile: the strip shows only a notice,
+  never "0 m" totals or a flat chart (code review: those would present untrue numbers as facts).
+- Totals use a 5 m dead band: a step further in the same direction always counts; a step the
+  other way counts only once it is at least 5 m from the last counted height. Small wobbles are
+  ignored and every real climb counts in full. (The first version measured from turning points
+  only and dropped the last few metres before each peak; code review found it.) 5 m is a design
+  choice, not a measurement.
+- Totals follow the trek AS WALKED: stop to stop in day order, each stage in its own direction,
+  so the way back of an out-and-back trek counts too. The trail line once would only give the
+  way out. (On such a trek the return stops' markers sit on top of the outward ones.)
+- The header's status line (loading, error, no terrain, or the totals) is one live region that
+  is always there, so it is announced and stays visible when the chart is hidden. Labels say
+  "terrain" and the axis names the WGS84 ellipsoid, so the numbers are not read as sea level.
 - Chart.js (v4) draws the chart on a canvas, created and destroyed in a React effect, with only
   the needed parts registered. The canvas has `role="img"` and a one-line summary; the totals are
   also plain text. The strip sits under the globe (ui-design) and can be hidden; it starts hidden
@@ -519,4 +529,6 @@ need a terrain source and a schema change; the browser already has Cesium's terr
 library with a React wrapper (one more dependency to explain); no dead band (inflated totals).
 **Limits:** TODO(team): compare the totals with published figures for each real trek after
 #9–#12 and adjust the dead band if needed; measure how long sampling takes for a long trek
-(#30). The #13 altitude cross-check compares cited altitudes with terrain heights.
+(#30). The #13 altitude cross-check compares cited altitudes (above sea level) with terrain
+heights (above the ellipsoid); the difference between the two over Nepal must be taken into
+account there (Q16).

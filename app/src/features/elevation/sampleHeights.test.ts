@@ -1,5 +1,5 @@
 /**
- * sampleHeights.test.ts — profile sampling: no-terrain fallback, failures, the per-route cache.
+ * sampleHeights.test.ts — profile sampling: no terrain, failures, unfilled heights, the cache.
  * Owner: Dipson Gurung. Related FR: FR4, issue #21.
  *
  * Cesium's sampleTerrainMostDetailed is replaced (vi.mock), so no network and no real terrain
@@ -23,10 +23,13 @@ const TRAIL: LonLat[] = [
 const WITH_TERRAIN = { availability: {} } as unknown as TerrainProvider;
 const NO_TERRAIN = {} as unknown as TerrainProvider; // like the smooth ellipsoid: no availability
 
-/** sampleTerrainMostDetailed "returns" height(i) for sample i. */
-function terrainReturns(height: (index: number) => number) {
+/** sampleTerrainMostDetailed "fills in" height(i) for sample i (undefined = leaves it as it is). */
+function terrainReturns(height: (index: number) => number | undefined) {
   vi.mocked(sampleTerrainMostDetailed).mockImplementation(async (_provider, places) => {
-    places.forEach((place, i) => (place.height = height(i)));
+    places.forEach((place, i) => {
+      const h = height(i);
+      if (h !== undefined) place.height = h;
+    });
     return places;
   });
 }
@@ -37,28 +40,35 @@ beforeEach(() => {
 });
 
 describe('sampleHeights', () => {
-  it('without terrain (no token) every height is 0 and it says so; nothing is requested', async () => {
-    const result = await sampleHeights(NO_TERRAIN, TRAIL);
-    expect(result).toEqual({ heightsM: [0, 0], noTerrain: true });
+  it('without terrain (no token) there are no heights, and nothing is requested', async () => {
+    expect(await sampleHeights(NO_TERRAIN, TRAIL)).toBeNull();
     expect(sampleTerrainMostDetailed).not.toHaveBeenCalled();
   });
 
-  it('asks for the most detailed heights and rejects on a failed tile', async () => {
+  it('asks for the most detailed heights, with a failed tile rejecting', async () => {
     terrainReturns(() => 2000);
-    await sampleHeights(WITH_TERRAIN, TRAIL);
+    expect(await sampleHeights(WITH_TERRAIN, TRAIL)).toEqual([2000, 2000]);
     expect(vi.mocked(sampleTerrainMostDetailed).mock.calls[0][2]).toBe(true); // rejectOnTileFail
+  });
+
+  it('a height Cesium leaves unfilled is an error, never a silent 0 m', async () => {
+    terrainReturns((i) => (i === 1 ? undefined : 2000)); // the second point stays NaN
+    await expect(sampleHeights(WITH_TERRAIN, TRAIL)).rejects.toThrow('could not be read');
   });
 });
 
 describe('loadProfile', () => {
   it('samples every ≤ 50 m and builds the profile', async () => {
-    terrainReturns((i) => 1000 + 10 * i); // a steady climb: 45 steps × 10 m = 450 m
-    const { profile, noTerrain } = await loadProfile('r1', TRAIL, WITH_TERRAIN);
-    expect(noTerrain).toBe(false);
-    expect(profile.points).toHaveLength(46);
-    expect(profile.lengthM).toBeCloseTo(2223.9, 1);
-    expect(profile.ascentM).toBe(450);
-    expect(profile.highest.heightM).toBe(1450);
+    terrainReturns((i) => 1000 + 10 * i); // a steady climb: 45 steps × 10 m
+    const result = await loadProfile('r1', TRAIL, WITH_TERRAIN);
+    if (result.noTerrain) throw new Error('expected terrain');
+    expect(result.profile.points).toHaveLength(46);
+    expect(result.profile.lengthM).toBeCloseTo(2223.9, 1);
+    expect(result.profile.highest.heightM).toBe(1450);
+  });
+
+  it('passes "no terrain" through, without any profile numbers', async () => {
+    expect(await loadProfile('r1', TRAIL, NO_TERRAIN)).toEqual({ noTerrain: true });
   });
 
   it('samples a route only once (cached), but each route separately', async () => {

@@ -15,16 +15,24 @@ what the TEAM must do next, open questions.
   highest point as text. Hide / Show; starts hidden on narrow screens (ADR-030).
 - Terrain heights come from Cesium World Terrain in the browser, cached per route; the strip
   says they are not the cited stop altitudes. Without a token it says there is no terrain.
-- Totals use a 5 m dead band (worked example in `profile.ts` and Dipson's notes).
+- Totals use a 5 m dead band (worked example in `profile.ts` and Dipson's notes), and follow
+  the trek as walked, stop to stop (the way back of an out-and-back trek counts).
+- Code review found untrue numbers: "0 m" totals without a token (now only a notice), totals
+  that would miss the way back of an out-and-back trek (now walked totals), a dead band that
+  dropped the last metres before each peak (fixed and tested), a retry hint that did nothing (now
+  a Try again button), heights that could silently stay 0 m (now an error). Also: datum wording,
+  a status line that stays visible, the tablet layout, a tooltip string not translated. New open
+  question Q16 for Unique (ellipsoid vs sea-level heights in #13).
 - Shared helpers: `resampleTrail` moved to `lib/geo/resample.ts`, `terrainReady` to
   `engine/terrain.ts` (the flythrough uses both too).
 - New dependency: chart.js ^4.6.1.
 - Screenshot `docs/screenshots/m4-elevation-profile-synthetic.png` (synthetic route over real
   terrain; its numbers are not trek facts).
 
-**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 153
-passed; `npm run e2e` 14 passed (with the token); the profile, flythrough and smoke specs also
-passed on a build without a token.
+**Test evidence (local, Windows):** `npm run lint` clean; `npm run typecheck` clean; Vitest 161
+passed; `npm run e2e` 15 passed (with the token, incl. a 768 px tablet test); the profile,
+flythrough and smoke specs also passed on a build without a token. Mutation checks, each made a
+unit test fail: the old dead-band rule (2 tests); totals of the line once instead of walked.
 
 **Team next**
 
