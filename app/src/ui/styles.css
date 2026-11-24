@@ -362,3 +362,13 @@ li > .stop-text {
   color: var(--muted);
   font-size: 0.8rem;
 }
+
+/* Text for screen readers and tests only: on the page, but not seen. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
