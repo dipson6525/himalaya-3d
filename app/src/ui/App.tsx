@@ -21,6 +21,8 @@ import {
 } from '../engine/flythrough/FlythroughController';
 import { FlythroughLayer } from '../engine/flythrough/FlythroughLayer';
 import { ElevationSampler, type ProfileState } from '../features/elevation/ElevationSampler';
+import { ProfileHoverProvider } from '../features/elevation/ProfileHoverContext';
+import { ProfileHoverMarker } from '../features/elevation/ProfileHoverMarker';
 import { ProfileStrip } from '../features/elevation/ProfileStrip';
 import { FlythroughControls } from '../features/routes/FlythroughControls';
 import { routeStages } from '../features/routes/routeEntities';
@@ -160,37 +162,42 @@ export function App() {
         <p className="tagline">{t('app.tagline', LANGUAGE)}</p>
       </header>
 
-      <main className="app-main">
-        <div className="map-column">
-          <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
-            <CesiumGlobe>
-              <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
-              <StageLayer
-                stage={selectedStage}
-                flyTo={stageChoice?.flyTo ?? true}
-                onDrawn={setDrawnStage}
-              />
-              <FlythroughLayer
-                route={routes.current}
-                onController={onFlyController}
-                onStatus={onFlyStatus}
-              />
-              <ElevationSampler
-                route={routes.current}
-                attempt={profileAttempt}
-                onProfile={onProfile}
-              />
-            </CesiumGlobe>
-          </section>
-          <ProfileStrip
-            state={profile}
-            route={routes.current}
-            language={LANGUAGE}
-            onRetry={() => setProfileAttempt((n) => n + 1)}
-          />
-        </div>
-        <SidePanel tabs={tabs} language={LANGUAGE} />
-      </main>
+      {/* The chart ↔ map highlight (#22) lives in its own provider, so a mouse move over the
+          chart re-renders only the chart and the globe marker, not this whole page. */}
+      <ProfileHoverProvider>
+        <main className="app-main">
+          <div className="map-column">
+            <section className="globe-area" aria-label={t('globe.label', LANGUAGE)}>
+              <CesiumGlobe>
+                <RouteLayer route={routes.current} language={LANGUAGE} onDrawn={setDrawnStops} />
+                <StageLayer
+                  stage={selectedStage}
+                  flyTo={stageChoice?.flyTo ?? true}
+                  onDrawn={setDrawnStage}
+                />
+                <FlythroughLayer
+                  route={routes.current}
+                  onController={onFlyController}
+                  onStatus={onFlyStatus}
+                />
+                <ElevationSampler
+                  route={routes.current}
+                  attempt={profileAttempt}
+                  onProfile={onProfile}
+                />
+                <ProfileHoverMarker route={routes.current} />
+              </CesiumGlobe>
+            </section>
+            <ProfileStrip
+              state={profile}
+              route={routes.current}
+              language={LANGUAGE}
+              onRetry={() => setProfileAttempt((n) => n + 1)}
+            />
+          </div>
+          <SidePanel tabs={tabs} language={LANGUAGE} />
+        </main>
+      </ProfileHoverProvider>
 
       {/* A plain <footer> keeps its built-in "contentinfo" landmark (docs/ui-design.md, #16). */}
       <footer className="disclaimer">{t('disclaimer.medical', LANGUAGE)}</footer>

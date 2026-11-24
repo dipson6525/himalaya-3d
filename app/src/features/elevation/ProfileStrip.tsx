@@ -13,6 +13,10 @@
  *   destroyed in its cleanup, and only the parts that are needed are registered (smaller
  *   download). A canvas means nothing to a screen reader, so it gets role="img" and a summary.
  * - The chart can be hidden (Hide / Show); on narrow screens (≤ 900 px) it starts hidden.
+ * - Linked to the globe (#22): moving the mouse over the chart sets the highlighted distance
+ *   (ProfileHoverContext, at most once per animation frame), and ProfileHoverMarker shows it on
+ *   the trail; a click on the trail sets it too. The chart marks it with a dashed line and a dot,
+ *   drawn by a small plugin that reads a ref, so the chart is redrawn, not rebuilt.
  */
 import {
   Chart,
@@ -22,13 +26,16 @@ import {
   LineElement,
   PointElement,
   Tooltip,
+  type Plugin,
 } from 'chart.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { t, type Language } from '../../i18n';
 import { splitRoute } from '../routes/loadRoutes';
 import type { RouteFile } from '../routes/types';
 import type { ProfileState } from './ElevationSampler';
-import { stopsOnProfile, walkedTotals, type ProfileStop } from './profile';
+import { frameThrottle } from './frameThrottle';
+import { heightAt, stopsOnProfile, walkedTotals, type ProfileStop } from './profile';
+import { useProfileHover } from './profileHover';
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Filler);
 
@@ -56,6 +63,11 @@ export function ProfileStrip({ state, route, language, onRetry }: ProfileStripPr
     () => typeof window === 'undefined' || !window.matchMedia('(max-width: 900px)').matches,
   );
   const canvas = useRef<HTMLCanvasElement>(null);
+  const chartRef = useRef<Chart | null>(null);
+  // The highlighted distance (from the chart or a click on the trail), shared with the globe.
+  const { highlightM, setHighlightM } = useProfileHover();
+  // The plugin that draws the highlight reads this ref, so a new highlight needs only a redraw.
+  const highlightRef = useRef<number | null>(null);
 
   const line = route ? splitRoute(route).route : null;
   // The profile to draw: only a sampled one, and only for the trek that is shown now.
@@ -84,8 +96,40 @@ export function ProfileStrip({ state, route, language, onRetry }: ProfileStripPr
   // Create the chart when there is a profile and the strip is open; destroy it in the cleanup.
   useEffect(() => {
     if (!profile || !expanded || !canvas.current) return;
+    // Mouse positions go to the shared highlight at most once per animation frame.
+    const hover = frameThrottle<number | null>(setHighlightM);
+
+    /** Draws the highlighted distance: a dashed vertical line and a dot on the terrain line. */
+    const highlightPlugin: Plugin<'line'> = {
+      id: 'profileHighlight',
+      afterDatasetsDraw(chart) {
+        const distanceM = highlightRef.current;
+        if (distanceM === null) return;
+        const { ctx, chartArea, scales } = chart;
+        const x = scales.x.getPixelForValue(distanceM / 1000);
+        const y = scales.y.getPixelForValue(heightAt(profile, distanceM));
+        ctx.save();
+        ctx.strokeStyle = '#ffffff';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = LINE_COLOR;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
     const chart = new Chart(canvas.current, {
       type: 'line',
+      plugins: [highlightPlugin],
       data: {
         datasets: [
           {
@@ -113,6 +157,13 @@ export function ProfileStrip({ state, route, language, onRetry }: ProfileStripPr
         responsive: true,
         maintainAspectRatio: false, // fill the strip's height
         interaction: { mode: 'nearest', intersect: false },
+        // Mouse over the plot → the distance under the mouse. (Chart.js calls onHover only inside
+        // the plot area; leaving the chart is handled by the canvas's mouseleave event below.)
+        onHover: (event, _elements, chart) => {
+          const km = chart.scales.x.getValueForPixel(event.x ?? 0);
+          if (km === undefined) return;
+          hover.push(Math.min(Math.max(km * 1000, 0), profile.lengthM));
+        },
         scales: {
           x: {
             type: 'linear',
@@ -155,8 +206,24 @@ export function ProfileStrip({ state, route, language, onRetry }: ProfileStripPr
         },
       },
     });
-    return () => chart.destroy();
-  }, [profile, stops, expanded, language]);
+    chartRef.current = chart;
+    // The mouse leaves the chart → nothing highlighted (on the chart and on the globe).
+    const element = canvas.current;
+    const onLeave = () => hover.push(null);
+    element.addEventListener('mouseleave', onLeave);
+    return () => {
+      element.removeEventListener('mouseleave', onLeave);
+      hover.cancel();
+      chartRef.current = null;
+      chart.destroy();
+    };
+  }, [profile, stops, expanded, language, setHighlightM]);
+
+  // A new highlight (from the chart or the map): store it for the plugin and redraw.
+  useEffect(() => {
+    highlightRef.current = highlightM;
+    chartRef.current?.draw();
+  }, [highlightM]);
 
   if (state.status === 'idle' || !line) return null; // no trek shown: no strip (ui-design)
 
@@ -187,6 +254,7 @@ export function ProfileStrip({ state, route, language, onRetry }: ProfileStripPr
       data-status={state.status}
       data-no-terrain={noTerrain}
       data-samples={profile ? profile.points.length : 0}
+      data-highlight-m={highlightM === null ? '' : Math.round(highlightM)}
     >
       <div className="profile-header">
         <h2 id="profile-heading">{t('profile.heading', language)}</h2>
